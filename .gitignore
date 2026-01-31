@@ -10,3 +10,6 @@ contracts/script/
 contracts/script/
 
 .next/*/*
+
+.next/dev
+
