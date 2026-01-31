@@ -13,8 +13,8 @@ export const MOCK_FARMS: Farm[] = [
     lastCheckDate: '2026-01-28',
     hasBurning: false,
     burningIncidents: 0,
-    insuranceStatus: 'active',
-    rewardAmount: 500,
+    eligibilityStatus: 'eligible',
+    rewardAmount: 127500, // 25.5 ha × ฿5,000/ha/year
   },
   {
     id: 'farm2',
@@ -27,7 +27,7 @@ export const MOCK_FARMS: Farm[] = [
     lastCheckDate: '2026-01-28',
     hasBurning: true,
     burningIncidents: 2,
-    insuranceStatus: 'ineligible',
+    eligibilityStatus: 'ineligible',
     rewardAmount: 0,
   },
   {
@@ -41,8 +41,8 @@ export const MOCK_FARMS: Farm[] = [
     lastCheckDate: '2026-01-28',
     hasBurning: false,
     burningIncidents: 0,
-    insuranceStatus: 'paid',
-    rewardAmount: 800,
+    eligibilityStatus: 'paid',
+    rewardAmount: 210000, // 42.0 ha × ฿5,000/ha/year
   },
   {
     id: 'farm4',
@@ -55,8 +55,8 @@ export const MOCK_FARMS: Farm[] = [
     lastCheckDate: '2026-01-28',
     hasBurning: false,
     burningIncidents: 0,
-    insuranceStatus: 'pending',
-    rewardAmount: 650,
+    eligibilityStatus: 'pending',
+    rewardAmount: 168500, // 33.7 ha × ฿5,000/ha/year
   },
   {
     id: 'farm5',
@@ -69,7 +69,7 @@ export const MOCK_FARMS: Farm[] = [
     lastCheckDate: '2026-01-28',
     hasBurning: true,
     burningIncidents: 1,
-    insuranceStatus: 'ineligible',
+    eligibilityStatus: 'ineligible',
     rewardAmount: 0,
   },
 ];
@@ -96,24 +96,24 @@ export const MOCK_BURNING_RECORDS: BurningRecord[] = [
   },
 ];
 
-// Mock insurance payments
+// Mock insurance payments (THB ฿5,000/ha/year)
 export const MOCK_PAYMENTS: InsurancePayment[] = [
   {
     farmId: 'farm1',
-    amount: 500,
+    amount: 127500, // 25.5 ha × ฿5,000/ha/year
     timestamp: '2026-01-28T10:00:00Z',
     status: 'pending',
   },
   {
     farmId: 'farm3',
-    amount: 800,
+    amount: 210000, // 42.0 ha × ฿5,000/ha/year
     timestamp: '2026-01-27T15:30:00Z',
     txHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
     status: 'completed',
   },
   {
     farmId: 'farm4',
-    amount: 650,
+    amount: 168500, // 33.7 ha × ฿5,000/ha/year
     timestamp: '2026-01-28T09:15:00Z',
     status: 'pending',
   },

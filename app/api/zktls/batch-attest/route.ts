@@ -1,16 +1,25 @@
 import { NextResponse } from 'next/server';
 import { MOCK_FARMS } from '@/lib/data/mockData';
 import {
+  initializePrimus,
   createGISTDAAttestation,
   verifyAttestation,
   formatForOnChain,
   getPublicConfig,
+  isMockMode,
 } from '@/lib/zktls';
 
 /**
  * POST /api/zktls/batch-attest
  * 
- * Create zkTLS attestations for all farms
+ * Create zkTLS attestations for all farms using Primus zkTLS
+ * 
+ * Integration Type: SERVER-SIDE (Backend Integration)
+ * - No browser extension required
+ * - Server initiates verification programmatically
+ * - Suitable for batch processing and automated verification
+ * 
+ * @see https://docs.primuslabs.xyz/enterprise/zk-tls-sdk/overview
  * 
  * Request body (optional):
  * - farmIds: string[] - Specific farm IDs to attest (defaults to all)
@@ -19,9 +28,15 @@ import {
  * Response:
  * - summary: Batch attestation summary
  * - attestations: Array of attestation results
+ * - config: zkTLS configuration (including mock mode indicator)
  */
 export async function POST(request: Request) {
   try {
+    // Initialize Primus zkTLS
+    const primusInitialized = await initializePrimus();
+    const mockMode = isMockMode();
+    console.log(`[zkTLS] Initialized: ${primusInitialized}, Mode: ${mockMode ? 'MOCK' : 'PRODUCTION'}`);
+
     const body = await request.json().catch(() => ({}));
     const { 
       farmIds = MOCK_FARMS.map(f => f.id),
@@ -41,25 +56,7 @@ export async function POST(request: Request) {
     // Create attestations in parallel
     const attestationPromises = farmsToAttest.map(async (farm) => {
       try {
-        // Check if farm has burning detected (ineligible for zkTLS proof)
-        if (farm.hasBurning) {
-          return {
-            farmId: farm.id,
-            farmName: farm.name,
-            owner: farm.owner,
-            location: farm.location,
-            attestation: null,
-            verification: { 
-              verified: false, 
-              error: 'Farm has burning incidents detected - ineligible for clean air proof' 
-            },
-            onChainData: null,
-            success: false,
-            reason: 'BURNING_DETECTED',
-            burningIncidents: farm.burningIncidents,
-          };
-        }
-
+        // Create attestation (mock server will determine burning status from GISTDA mock data)
         const attestation = await createGISTDAAttestation(
           farm.id,
           `GISTDA_${farm.id}`,
@@ -68,8 +65,14 @@ export async function POST(request: Request) {
           userAddress
         );
 
+        // Verify the attestation
         const verification = await verifyAttestation(attestation);
+        
+        // Format for on-chain submission
         const onChainData = formatForOnChain(attestation);
+
+        // Check if farm has burning detected
+        const hasBurning = !attestation.data.noBurningDetected;
 
         return {
           farmId: farm.id,
@@ -89,6 +92,8 @@ export async function POST(request: Request) {
           },
           onChainData,
           success: attestation.success && verification.verified,
+          hasBurning,
+          eligibleForReward: !hasBurning && attestation.success && verification.verified,
         };
       } catch (error) {
         return {
@@ -100,6 +105,8 @@ export async function POST(request: Request) {
           verification: { verified: false, error: error instanceof Error ? error.message : 'Failed' },
           onChainData: null,
           success: false,
+          hasBurning: null,
+          eligibleForReward: false,
         };
       }
     });
@@ -107,27 +114,39 @@ export async function POST(request: Request) {
     const results = await Promise.all(attestationPromises);
 
     // Calculate summary
+    const successfulResults = results.filter(r => r.success);
     const summary = {
       totalFarms: results.length,
-      successfulAttestations: results.filter(r => r.success).length,
-      cleanFarms: results.filter(r => r.attestation?.noBurningDetected).length,
-      burningDetected: results.filter(r => r.attestation && !r.attestation.noBurningDetected).length,
+      successfulAttestations: successfulResults.length,
+      cleanFarms: results.filter(r => r.attestation?.noBurningDetected === true).length,
+      burningDetected: results.filter(r => r.hasBurning === true).length,
       failed: results.filter(r => !r.success).length,
+      eligibleForReward: results.filter(r => r.eligibleForReward).length,
       attestedAt: new Date().toISOString(),
     };
+
+    // Get config with mock mode indicator
+    const config = getPublicConfig();
 
     return NextResponse.json({
       success: true,
       summary,
       attestations: results,
-      config: getPublicConfig(),
+      config: {
+        ...config,
+        integrationType: 'server-side',
+        note: config.isMock 
+          ? 'Running in MOCK mode - attestations are simulated for demo purposes'
+          : 'Running in PRODUCTION mode - using real Primus zkTLS SDK',
+      },
     });
   } catch (error) {
-    console.error('Batch zkTLS attestation error:', error);
+    console.error('[zkTLS] Batch attestation error:', error);
     return NextResponse.json(
       {
         success: false,
         error: error instanceof Error ? error.message : 'Batch attestation failed',
+        config: { isMock: isMockMode() },
       },
       { status: 500 }
     );

@@ -1,9 +1,10 @@
 /**
  * Clean Air Incentive Payment System
  * 
- * This module handles THB payments to farmers who submit valid
+ * This module handles USDC payments to farmers on Base who submit valid
  * zkTLS proofs showing no burning detected.
- * Reward: THB 5,000 per hectare per year.
+ * 
+ * Reward: ฿5,000 THB (~$140 USDC) per hectare per year.
  */
 
 export * from './types';
@@ -11,12 +12,22 @@ export * from './paymentService';
 
 // Re-export main functions
 export {
-  processClaimReward,
+  // Reward calculation
+  calculateRewardAmount,
+  calculateRewardEstimate,
+  getFarmRewardEstimate,
+  
+  // Eligibility
   checkClaimEligibility,
+  
+  // Payment processing (demo/fallback)
+  processClaimReward,
+  
+  // History
   getFarmPaymentHistory,
+  
+  // Configuration
   getPaymentConfig,
   estimateClaimGas,
-  getPendingClaims,
   getTotalDistributed,
-  calculateRewardAmount,
 } from './paymentService';

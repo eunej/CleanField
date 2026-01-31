@@ -73,7 +73,7 @@ export async function GET(
     currentStatus: {
       hasBurning: farm.hasBurning,
       burningIncidents: farm.burningIncidents,
-      insuranceStatus: farm.insuranceStatus,
+      eligibilityStatus: farm.eligibilityStatus,
     },
     gistdaApiUrl: buildGistdaUrl(farm.location.lat, farm.location.lng),
   });

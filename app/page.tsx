@@ -341,7 +341,7 @@ export default function AdminPage() {
                       <th className="px-4 py-4 text-left text-sm font-semibold">Owner</th>
                       <th className="px-4 py-4 text-left text-sm font-semibold">Location</th>
                       <th className="px-4 py-4 text-center text-sm font-semibold">System Status</th>
-                      <th className="px-4 py-4 text-left text-sm font-semibold">Insurance</th>
+                      <th className="px-4 py-4 text-left text-sm font-semibold">Eligibility</th>
                       <th className="px-4 py-4 text-right text-sm font-semibold">Reward</th>
                       <th className="px-4 py-4 text-center text-sm font-semibold">Actions</th>
                     </tr>
@@ -383,21 +383,21 @@ export default function AdminPage() {
                           <td className="px-4 py-4 text-sm">
                             <span
                               className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                                farm.insuranceStatus === 'active'
+                                farm.eligibilityStatus === 'eligible'
                                   ? 'bg-blue-100 text-blue-800'
-                                  : farm.insuranceStatus === 'paid'
+                                  : farm.eligibilityStatus === 'paid'
                                   ? 'bg-green-100 text-green-800'
-                                  : farm.insuranceStatus === 'pending'
+                                  : farm.eligibilityStatus === 'pending'
                                   ? 'bg-yellow-100 text-yellow-800'
-                                  : 'bg-gray-100 text-gray-800'
+                                  : 'bg-red-100 text-red-800'
                               }`}
                             >
-                              {farm.insuranceStatus.toUpperCase()}
+                              {farm.eligibilityStatus.toUpperCase()}
                             </span>
                           </td>
                           <td className="px-4 py-4 text-right text-sm font-semibold">
                             {farm.rewardAmount > 0 ? (
-                              <span className="text-green-600">${farm.rewardAmount}</span>
+                              <span className="text-green-600">฿{farm.rewardAmount.toLocaleString()}</span>
                             ) : (
                               <span className="text-gray-400">-</span>
                             )}
@@ -458,7 +458,7 @@ export default function AdminPage() {
                   <div>
                     <p className="text-gray-600 text-sm">Total Rewards</p>
                     <p className="text-3xl font-bold text-green-600">
-                      ${farms.reduce((sum, f) => sum + f.rewardAmount, 0)}
+                      ฿{farms.reduce((sum, f) => sum + f.rewardAmount, 0).toLocaleString()}
                     </p>
                   </div>
                   <div className="bg-yellow-100 rounded-full p-3">

@@ -6,7 +6,7 @@ import {
   getPaymentConfig,
   estimateClaimGas,
   getTotalDistributed,
-  calculateRewardAmount,
+  getFarmRewardEstimate,
   ClaimRequest,
 } from '@/lib/payments';
 
@@ -15,20 +15,24 @@ import {
  * 
  * Claim clean air incentive payment after zkTLS proof submission
  * 
+ * This endpoint provides demo/fallback claiming when the smart contract
+ * is not deployed or accessible. For production, use on-chain claiming.
+ * 
  * Request body:
  * - farmId: string - Farm identifier
  * - attestationId: string - zkTLS attestation ID
  * - proofHash: string - Cryptographic proof hash
+ * - signature?: string - Attestor signature (for on-chain verification)
  * - noBurningDetected: boolean - Whether the proof shows no burning
  * - timestamp: number - Attestation timestamp
  * 
  * Response:
- * - ClaimResult with payment status and transaction hash
+ * - ClaimResult with payment status, amounts in both USDC and THB
  */
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { farmId, attestationId, proofHash, noBurningDetected, timestamp } = body;
+    const { farmId, attestationId, proofHash, signature, noBurningDetected, timestamp } = body;
 
     // Validate required fields
     if (!farmId || !attestationId || !proofHash || noBurningDetected === undefined) {
@@ -56,11 +60,12 @@ export async function POST(request: Request) {
       walletAddress: farm.walletAddress,
       attestationId,
       proofHash,
+      signature,
       noBurningDetected,
       timestamp: timestamp || Date.now(),
     };
 
-    // Process the claim
+    // Process the claim (demo mode)
     const result = await processClaimReward(claimRequest);
 
     return NextResponse.json({
@@ -69,6 +74,7 @@ export async function POST(request: Request) {
         id: farm.id,
         name: farm.name,
         owner: farm.owner,
+        area: farm.area,
       },
       config: getPaymentConfig(),
     });
@@ -111,6 +117,9 @@ export async function GET(request: Request) {
 
     // Check eligibility (assuming no burning for eligibility check)
     const eligibility = checkClaimEligibility(farmId, !farm.hasBurning, true);
+    
+    // Get reward estimate
+    const rewardEstimate = getFarmRewardEstimate(farmId);
 
     return NextResponse.json({
       success: true,
@@ -121,8 +130,8 @@ export async function GET(request: Request) {
         walletAddress: farm.walletAddress,
         hasBurning: farm.hasBurning,
         area: farm.area,
-        calculatedReward: calculateRewardAmount(farmId),
       },
+      reward: rewardEstimate,
       eligibility,
       config,
       gasEstimate,
@@ -132,7 +141,7 @@ export async function GET(request: Request) {
   return NextResponse.json({
     success: true,
     name: 'Clean Air Incentive Payment System',
-    description: 'Submit zkTLS proof of no burning to claim THB rewards (฿5,000/ha/year)',
+    description: 'Submit zkTLS proof of no burning to claim USDC rewards (~$140/ha/year)',
     config,
     gasEstimate,
     stats: totalDistributed,
@@ -140,6 +149,12 @@ export async function GET(request: Request) {
       claim: 'POST /api/claim',
       checkEligibility: 'GET /api/claim?farmId=<farmId>',
       history: 'GET /api/claim/history?farmId=<farmId>',
+    },
+    onChainInfo: {
+      note: 'For production, use on-chain claiming via the CleanFieldRewards contract',
+      network: config.network,
+      chainId: config.chainId,
+      contractAddress: config.contractAddress,
     },
   });
 }

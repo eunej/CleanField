@@ -1,8 +1,14 @@
 /**
  * Clean Air Incentive Payment Service
  * 
- * Handles THB payments to farmers after zkTLS proof verification.
- * Reward: THB 5,000 per hectare per year for maintaining clean air practices.
+ * Handles USDC payments to farmers on Base after zkTLS proof verification.
+ * Reward: ฿5,000 THB (~$140 USDC) per hectare per year for maintaining clean air practices.
+ * 
+ * This service provides:
+ * - Reward calculation (THB and USDC)
+ * - Eligibility checking
+ * - Payment configuration
+ * - Demo/fallback payment processing (when contract not deployed)
  */
 
 import {
@@ -11,32 +17,92 @@ import {
   ClaimResult,
   PaymentRecord,
   FarmPaymentHistory,
+  RewardEstimate,
 } from './types';
 import { MOCK_FARMS } from '@/lib/data/mockData';
 
+// ===========================================
 // Payment Configuration
+// ===========================================
+
 const PAYMENT_CONFIG: PaymentConfig = {
-  contractAddress: process.env.NEXT_PUBLIC_PAYMENT_CONTRACT || '0x7169D38820dfd117C3FA1f22a697dBA58d90BA06',
-  oracleContractAddress: process.env.NEXT_PUBLIC_ORACLE_CONTRACT || '0x0000000000000000000000000000000000000000',
-  rewardPerHectare: 5000, // THB 5,000 per hectare per year
-  currency: 'THB',
+  contractAddress: process.env.NEXT_PUBLIC_REWARDS_CONTRACT || '',
+  oracleContractAddress: process.env.NEXT_PUBLIC_ORACLE_CONTRACT || '',
+  verifierContractAddress: process.env.NEXT_PUBLIC_VERIFIER_CONTRACT || '',
+  usdcAddress: process.env.NEXT_PUBLIC_USDC_ADDRESS || '',
+  rewardPerHectareTHB: 5000, // ฿5,000 per hectare per year
+  rewardPerHectareUSDC: 140, // ~$140 USDC per hectare per year
+  thbToUsdcRate: 35, // 35 THB = 1 USD (approximate)
+  currency: 'USDC',
   claimPeriodDays: 365, // yearly claim
-  network: 'sepolia',
+  network: 'base-sepolia',
+  chainId: 84532,
 };
+
+// ===========================================
+// Reward Calculation
+// ===========================================
 
 /**
  * Calculate reward amount based on farm area
+ * @param farmId - Farm identifier
+ * @returns Reward in the configured currency (USDC)
  */
 export function calculateRewardAmount(farmId: string): number {
   const farm = MOCK_FARMS.find(f => f.id === farmId);
   if (!farm) return 0;
-  // Reward = THB 5,000 × farm area (in hectares)
-  return Math.round(PAYMENT_CONFIG.rewardPerHectare * farm.area);
+  
+  // Reward = rewardPerHectareUSDC × farm area (in hectares)
+  return Math.round(PAYMENT_CONFIG.rewardPerHectareUSDC * farm.area);
 }
 
-// In-memory storage for demo (would be database in production)
+/**
+ * Calculate reward estimate for a given area
+ * @param areaHectares - Farm area in hectares
+ * @returns Reward estimate in both USDC and THB
+ */
+export function calculateRewardEstimate(areaHectares: number): RewardEstimate {
+  const rewardUSDC = Math.round(PAYMENT_CONFIG.rewardPerHectareUSDC * areaHectares);
+  const rewardTHB = Math.round(PAYMENT_CONFIG.rewardPerHectareTHB * areaHectares);
+  
+  return {
+    areaHectares,
+    rewardUSDC,
+    rewardTHB,
+    rate: {
+      perHectareUSDC: PAYMENT_CONFIG.rewardPerHectareUSDC,
+      perHectareTHB: PAYMENT_CONFIG.rewardPerHectareTHB,
+      thbToUsdcRate: PAYMENT_CONFIG.thbToUsdcRate,
+    },
+  };
+}
+
+/**
+ * Get reward for a specific farm
+ * @param farmId - Farm identifier
+ * @returns Reward estimate or null if farm not found
+ */
+export function getFarmRewardEstimate(farmId: string): RewardEstimate | null {
+  const farm = MOCK_FARMS.find(f => f.id === farmId);
+  if (!farm) return null;
+  
+  return calculateRewardEstimate(farm.area);
+}
+
+// ===========================================
+// In-memory storage for demo
+// ===========================================
+
 const paymentRecords: Map<string, PaymentRecord[]> = new Map();
 const lastClaimDates: Map<string, string> = new Map();
+const lastClaimYears: Map<string, number> = new Map();
+
+/**
+ * Get current calendar year
+ */
+function getCurrentYear(): number {
+  return new Date().getFullYear();
+}
 
 /**
  * Generate a mock transaction hash
@@ -51,6 +117,20 @@ function generateMockTxHash(): string {
 }
 
 /**
+ * Get explorer URL for a transaction
+ */
+function getExplorerUrl(txHash: string): string {
+  const baseUrl = PAYMENT_CONFIG.network === 'base' 
+    ? 'https://basescan.org'
+    : 'https://sepolia.basescan.org';
+  return `${baseUrl}/tx/${txHash}`;
+}
+
+// ===========================================
+// Eligibility Checking
+// ===========================================
+
+/**
  * Check if a farm is eligible to claim reward
  */
 export function checkClaimEligibility(
@@ -61,14 +141,19 @@ export function checkClaimEligibility(
   isEligible: boolean;
   reason: string;
   lastClaimDate?: string;
+  lastClaimYear?: number;
+  currentYear?: number;
   nextClaimDate?: string;
   daysUntilNextClaim?: number;
 } {
+  const currentYear = getCurrentYear();
+  
   // Check 1: Proof must show no burning
   if (!noBurningDetected) {
     return {
       isEligible: false,
       reason: 'Burning detected in zkTLS proof. Farm is not eligible for clean air incentive.',
+      currentYear,
     };
   }
 
@@ -77,10 +162,22 @@ export function checkClaimEligibility(
     return {
       isEligible: false,
       reason: 'zkTLS proof verification failed. Please generate a new attestation.',
+      currentYear,
     };
   }
 
-  // Check 3: Must wait for claim period since last claim
+  // Check 3: Must not have claimed this year
+  const lastClaimYear = lastClaimYears.get(farmId);
+  if (lastClaimYear && lastClaimYear >= currentYear) {
+    return {
+      isEligible: false,
+      reason: `You have already claimed your reward for ${currentYear}. Next claim available in ${currentYear + 1}.`,
+      lastClaimYear,
+      currentYear,
+    };
+  }
+
+  // Check 4: Must wait for claim period since last claim (extra safety)
   const lastClaim = lastClaimDates.get(farmId);
   if (lastClaim) {
     const lastClaimDate = new Date(lastClaim);
@@ -94,6 +191,8 @@ export function checkClaimEligibility(
         isEligible: false,
         reason: `Must wait ${daysUntilNextClaim} more days before next claim. Claim period is ${PAYMENT_CONFIG.claimPeriodDays} days.`,
         lastClaimDate: lastClaim,
+        lastClaimYear,
+        currentYear,
         nextClaimDate: nextClaimDate.toISOString(),
         daysUntilNextClaim,
       };
@@ -104,24 +203,29 @@ export function checkClaimEligibility(
     isEligible: true,
     reason: 'Farm is eligible for clean air incentive payment.',
     lastClaimDate: lastClaim,
+    lastClaimYear,
+    currentYear,
     nextClaimDate: lastClaim 
       ? new Date(new Date(lastClaim).getTime() + PAYMENT_CONFIG.claimPeriodDays * 24 * 60 * 60 * 1000).toISOString()
       : undefined,
   };
 }
 
+// ===========================================
+// Payment Processing (Demo/Fallback)
+// ===========================================
+
 /**
- * Process a clean air incentive claim
+ * Process a clean air incentive claim (demo mode)
  * 
- * This function:
- * 1. Verifies the claim eligibility
- * 2. Simulates the USDT transfer (would be real in production)
- * 3. Records the payment
+ * In production, this would be replaced by on-chain claiming via the smart contract.
+ * This function provides a demo/fallback when the contract is not deployed.
  */
 export async function processClaimReward(
   request: ClaimRequest
 ): Promise<ClaimResult> {
   const { farmId, walletAddress, attestationId, proofHash, noBurningDetected, timestamp } = request;
+  const currentYear = getCurrentYear();
 
   // Check eligibility
   const eligibility = checkClaimEligibility(farmId, noBurningDetected, true);
@@ -132,7 +236,9 @@ export async function processClaimReward(
       farmId,
       walletAddress,
       amount: 0,
-      currency: 'USDT',
+      amountUSDC: 0,
+      amountTHB: 0,
+      currency: 'USDC',
       status: 'ineligible',
       message: eligibility.reason,
       eligibility: {
@@ -142,37 +248,41 @@ export async function processClaimReward(
         proofVerified: true,
         lastClaimDate: eligibility.lastClaimDate,
         nextClaimDate: eligibility.nextClaimDate,
+        lastClaimYear: eligibility.lastClaimYear,
+        currentYear: eligibility.currentYear,
       },
     };
   }
 
   try {
-    // In production, this would:
-    // 1. Submit proof to CleanFieldOracle contract
-    // 2. Call claimReward() function
-    // 3. Wait for transaction confirmation
-    
     // Simulate processing delay
     await new Promise(resolve => setTimeout(resolve, 1500));
 
     // Generate mock transaction hash
     const txHash = generateMockTxHash();
     const now = new Date().toISOString();
-    const rewardAmount = calculateRewardAmount(farmId);
+    
+    // Calculate reward
+    const estimate = getFarmRewardEstimate(farmId);
+    const rewardAmountUSDC = estimate?.rewardUSDC || 0;
+    const rewardAmountTHB = estimate?.rewardTHB || 0;
 
     // Create payment record
     const payment: PaymentRecord = {
       id: `pay_${farmId}_${Date.now()}`,
       farmId,
       walletAddress,
-      amount: rewardAmount,
-      currency: PAYMENT_CONFIG.currency,
+      amount: rewardAmountTHB, // Display in THB for legacy compatibility
+      amountUSDC: rewardAmountUSDC,
+      currency: 'THB', // Display currency
       txHash,
+      explorerUrl: getExplorerUrl(txHash),
       status: 'completed',
       attestationId,
       proofHash,
       createdAt: now,
       completedAt: now,
+      year: currentYear,
     };
 
     // Store payment record
@@ -180,18 +290,22 @@ export async function processClaimReward(
     farmPayments.push(payment);
     paymentRecords.set(farmId, farmPayments);
 
-    // Update last claim date
+    // Update last claim tracking
     lastClaimDates.set(farmId, now);
+    lastClaimYears.set(farmId, currentYear);
 
     return {
       success: true,
       farmId,
       walletAddress,
-      amount: rewardAmount,
-      currency: PAYMENT_CONFIG.currency,
+      amount: rewardAmountTHB,
+      amountUSDC: rewardAmountUSDC,
+      amountTHB: rewardAmountTHB,
+      currency: 'THB',
       txHash,
+      explorerUrl: getExplorerUrl(txHash),
       status: 'completed',
-      message: `Successfully transferred ฿${rewardAmount.toLocaleString()} to ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`,
+      message: `Successfully transferred ฿${rewardAmountTHB.toLocaleString()} (~$${rewardAmountUSDC} USDC) to ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`,
       claimedAt: now,
       eligibility: {
         isEligible: true,
@@ -200,6 +314,8 @@ export async function processClaimReward(
         proofVerified: true,
         lastClaimDate: now,
         nextClaimDate: new Date(Date.now() + PAYMENT_CONFIG.claimPeriodDays * 24 * 60 * 60 * 1000).toISOString(),
+        lastClaimYear: currentYear,
+        currentYear,
       },
     };
   } catch (error) {
@@ -208,7 +324,9 @@ export async function processClaimReward(
       farmId,
       walletAddress,
       amount: 0,
-      currency: 'USDT',
+      amountUSDC: 0,
+      amountTHB: 0,
+      currency: 'USDC',
       status: 'failed',
       message: error instanceof Error ? error.message : 'Payment processing failed',
       eligibility: {
@@ -216,10 +334,15 @@ export async function processClaimReward(
         reason: 'Eligible but payment failed',
         noBurningDetected,
         proofVerified: true,
+        currentYear,
       },
     };
   }
 }
+
+// ===========================================
+// Payment History
+// ===========================================
 
 /**
  * Get payment history for a farm
@@ -228,81 +351,70 @@ export function getFarmPaymentHistory(farmId: string): FarmPaymentHistory {
   const payments = paymentRecords.get(farmId) || [];
   const completedPayments = payments.filter(p => p.status === 'completed');
   const totalClaimed = completedPayments.reduce((sum, p) => sum + p.amount, 0);
+  const totalClaimedUSDC = completedPayments.reduce((sum, p) => sum + (p.amountUSDC || 0), 0);
 
   return {
     farmId,
     totalClaimed,
+    totalClaimedUSDC,
     totalPayments: completedPayments.length,
     lastClaimDate: lastClaimDates.get(farmId),
+    lastClaimYear: lastClaimYears.get(farmId),
     payments,
   };
 }
 
+// ===========================================
+// Configuration Getters
+// ===========================================
+
 /**
- * Get payment configuration (public info)
+ * Get current payment configuration
  */
-export function getPaymentConfig() {
-  return {
-    paymentContract: PAYMENT_CONFIG.contractAddress,
-    oracleContract: PAYMENT_CONFIG.oracleContractAddress,
-    rewardPerHectare: PAYMENT_CONFIG.rewardPerHectare,
-    currency: PAYMENT_CONFIG.currency,
-    claimPeriodDays: PAYMENT_CONFIG.claimPeriodDays,
-    network: PAYMENT_CONFIG.network,
-  };
+export function getPaymentConfig(): PaymentConfig {
+  return { ...PAYMENT_CONFIG };
 }
 
 /**
- * Estimate gas for claim transaction
+ * Estimate gas for claim transaction (placeholder)
  */
 export function estimateClaimGas(): {
   gasLimit: string;
   estimatedCostEth: string;
   estimatedCostUsd: string;
 } {
-  // Mock gas estimation
   return {
     gasLimit: '150000',
-    estimatedCostEth: '0.003',
-    estimatedCostUsd: '$7.50',
+    estimatedCostEth: '0.0003',
+    estimatedCostUsd: '0.50',
   };
 }
 
 /**
- * Get all pending claims
- */
-export function getPendingClaims(): PaymentRecord[] {
-  const allPending: PaymentRecord[] = [];
-  paymentRecords.forEach(payments => {
-    payments.filter(p => p.status === 'pending').forEach(p => allPending.push(p));
-  });
-  return allPending;
-}
-
-/**
- * Get total distributed rewards
+ * Get total distributed rewards (across all farms)
  */
 export function getTotalDistributed(): {
-  totalAmount: number;
-  totalClaims: number;
-  uniqueFarms: number;
+  totalTHB: number;
+  totalUSDC: number;
+  totalPayments: number;
+  totalFarms: number;
 } {
-  let totalAmount = 0;
-  let totalClaims = 0;
-  const uniqueFarms = new Set<string>();
+  let totalTHB = 0;
+  let totalUSDC = 0;
+  let totalPayments = 0;
+  let totalFarms = 0;
 
-  paymentRecords.forEach((payments, farmId) => {
+  paymentRecords.forEach((payments) => {
     const completed = payments.filter(p => p.status === 'completed');
     if (completed.length > 0) {
-      uniqueFarms.add(farmId);
-      totalClaims += completed.length;
-      totalAmount += completed.reduce((sum, p) => sum + p.amount, 0);
+      totalFarms++;
+      completed.forEach(p => {
+        totalTHB += p.amount;
+        totalUSDC += p.amountUSDC || 0;
+        totalPayments++;
+      });
     }
   });
 
-  return {
-    totalAmount,
-    totalClaims,
-    uniqueFarms: uniqueFarms.size,
-  };
+  return { totalTHB, totalUSDC, totalPayments, totalFarms };
 }

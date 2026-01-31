@@ -41,6 +41,7 @@ export interface AttestationResult {
     attestorPublicKey: string;
   };
   rawResponse?: unknown;
+  usedPrimusSDK?: boolean;
 }
 
 export interface VerificationResult {

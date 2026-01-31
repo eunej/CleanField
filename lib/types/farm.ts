@@ -13,8 +13,8 @@ export interface Farm {
   lastCheckDate: string;
   hasBurning: boolean;
   burningIncidents: number;
-  insuranceStatus: 'active' | 'pending' | 'paid' | 'ineligible';
-  rewardAmount: number; // in USDT
+  eligibilityStatus: 'eligible' | 'ineligible' | 'paid' | 'pending';
+  rewardAmount: number; // in THB
 }
 
 export interface BurningRecord {

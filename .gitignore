@@ -1,1 +1,12 @@
 node_modules
+
+.next/
+contracts/out/
+contracts/cache/
+contracts/lib/
+contracts/script/
+contracts/test/
+contracts/script/
+contracts/script/
+
+.next/*/*

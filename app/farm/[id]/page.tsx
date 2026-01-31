@@ -1,8 +1,28 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { Farm, InsurancePayment } from '@/lib/types/farm';
+import {
+  isWalletInstalled,
+  connectWallet,
+  disconnectWallet,
+  getWalletState,
+  switchToBase,
+  subscribeToWalletEvents,
+  getChainName,
+  formatAddress,
+  formatUSDC,
+  getExplorerTxUrl,
+  DEFAULT_CHAIN,
+  type WalletState,
+} from '@/lib/web3';
+import {
+  claimReward as claimRewardOnChain,
+  isContractDeployed,
+  formatProofHash,
+  type TransactionResult,
+} from '@/lib/web3/contracts';
 
 interface VerificationResult {
   success: boolean;
@@ -75,6 +95,7 @@ interface ClaimResult {
   amount: number;
   currency: string;
   txHash?: string;
+  explorerUrl?: string;
   status: string;
   message: string;
   claimedAt?: string;
@@ -105,8 +126,62 @@ export default function FarmOwnerPage() {
   const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
   const [zkTLSAttesting, setZkTLSAttesting] = useState(false);
   const [zkTLSResult, setZkTLSResult] = useState<ZkTLSAttestationResult | null>(null);
+  const [showAttestationJson, setShowAttestationJson] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [claimResult, setClaimResult] = useState<ClaimResult | null>(null);
+  
+  // Wallet state
+  const [wallet, setWallet] = useState<WalletState>({
+    isConnected: false,
+    address: null,
+    chainId: null,
+    isCorrectChain: false,
+    provider: null,
+    signer: null,
+  });
+  const [walletError, setWalletError] = useState<string | null>(null);
+  const [contractReady, setContractReady] = useState(false);
+  const [claimStep, setClaimStep] = useState<string>('');
+
+  // Check wallet state on mount
+  useEffect(() => {
+    const checkWallet = async () => {
+      if (isWalletInstalled()) {
+        const state = await getWalletState();
+        setWallet(state);
+
+        if (state.chainId) {
+          console.log('[Wallet] Connected chainId:', state.chainId);
+          console.log('[Wallet] Chain details:', getChainName(state.chainId));
+        }
+        
+        // Check if contract is deployed
+        if (state.signer) {
+          const deployed = await isContractDeployed();
+          setContractReady(deployed);
+          
+        }
+      }
+    };
+    checkWallet();
+  }, [farmId]);
+
+  // Subscribe to wallet events
+  useEffect(() => {
+    const unsubscribe = subscribeToWalletEvents(async (state) => {
+      setWallet(state);
+      if (state.chainId) {
+        console.log('[Wallet] Chain changed:', state.chainId);
+        console.log('[Wallet] Chain details:', getChainName(state.chainId));
+      }
+      if (state.signer) {
+        const deployed = await isContractDeployed();
+        setContractReady(deployed);
+        
+      }
+    });
+    return unsubscribe;
+  }, [farmId]);
 
   useEffect(() => {
     fetchFarmData();
@@ -122,6 +197,35 @@ export default function FarmOwnerPage() {
       console.error('Error fetching farm data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleConnectWallet = async () => {
+    setWalletError(null);
+    try {
+      const state = await connectWallet();
+      setWallet(state);
+      
+      if (state.signer) {
+        const deployed = await isContractDeployed();
+        setContractReady(deployed);
+      }
+    } catch (error) {
+      setWalletError(error instanceof Error ? error.message : 'Failed to connect wallet');
+    }
+  };
+
+  const handleDisconnectWallet = () => {
+    setWallet(disconnectWallet());
+    setContractReady(false);
+  };
+
+  const handleSwitchNetwork = async () => {
+    setWalletError(null);
+    try {
+      await switchToBase(); // Base Sepolia only
+    } catch (error) {
+      setWalletError(error instanceof Error ? error.message : 'Failed to switch network');
     }
   };
 
@@ -160,7 +264,7 @@ export default function FarmOwnerPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           farmId,
-          userAddress: farm?.walletAddress || '0x0000000000000000000000000000000000000000',
+          userAddress: wallet.address || farm?.walletAddress || '0x0000000000000000000000000000000000000000',
         }),
       });
       const data: ZkTLSAttestationResult = await response.json();
@@ -179,55 +283,91 @@ export default function FarmOwnerPage() {
     }
   };
 
-  const claimReward = async () => {
-    if (!zkTLSResult?.attestation) {
-      alert('Please generate a zkTLS proof first');
+  // Proof submission is now included in the single-step claim.
+
+  // Full on-chain claim flow: register -> submit proof -> claim
+  const handleClaimOnChain = useCallback(async () => {
+    if (!wallet.signer || !wallet.chainId || !farm || !zkTLSResult?.attestation) {
+      setWalletError('Missing required data for on-chain claim');
       return;
     }
 
     setClaiming(true);
     setClaimResult(null);
+    setWalletError(null);
+    
+    // Clear any previous transaction hashes to avoid confusion
+    console.log('[Claim] Starting claim flow for farm:', farmId);
 
     try {
-      const response = await fetch('/api/claim', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      // Single-step claim
+      setClaimStep('Claiming reward...');
+      console.log('[Claim] Claiming reward for farm:', farmId);
+      
+      const claimResult: TransactionResult = await claimRewardOnChain(
+        wallet.signer,
+        {
           farmId,
-          attestationId: zkTLSResult.attestation.id,
-          proofHash: zkTLSResult.attestation.proof.hash,
+          areaHectares: farm.area,
+          proofHash: formatProofHash(zkTLSResult.attestation.proof.hash),
+          signature: zkTLSResult.attestation.proof.signature,
           noBurningDetected: zkTLSResult.attestation.data.noBurningDetected,
-          timestamp: zkTLSResult.attestation.timestamp,
-        }),
-      });
-      const data: ClaimResult = await response.json();
-      setClaimResult(data);
+        },
+        wallet.chainId
+      );
 
-      // Refresh farm data if claim was successful
-      if (data.success) {
+      const rewardAmount = Math.round(farm.area * 140); // ~$140 USDC per hectare
+
+      if (claimResult.success && claimResult.txHash) {
+        console.log('[Claim] ✅ Claim successful! Transaction hash:', claimResult.txHash);
+        setClaimStep('');
+        setClaimResult({
+          success: true,
+          farmId,
+          walletAddress: wallet.address || '',
+          amount: rewardAmount,
+          currency: 'USDC',
+          txHash: claimResult.txHash, // Ensure we use the claim transaction hash
+          explorerUrl: claimResult.explorerUrl,
+          status: 'completed',
+          message: `Successfully claimed ${formatUSDC(BigInt(rewardAmount * 1_000_000))}`,
+          claimedAt: new Date().toISOString(),
+          eligibility: {
+            isEligible: true,
+            reason: 'Claim processed successfully',
+            noBurningDetected: true,
+            proofVerified: true,
+            lastClaimDate: new Date().toISOString(),
+            nextClaimDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+          },
+        });
         fetchFarmData();
+      } else {
+        throw new Error(claimResult.error || 'Claim transaction failed');
       }
     } catch (error) {
-      console.error('Error claiming reward:', error);
+      console.error('[Claim] Error:', error);
+      setClaimStep('');
       setClaimResult({
         success: false,
         farmId,
-        walletAddress: farm?.walletAddress || '',
+        walletAddress: wallet.address || '',
         amount: 0,
-        currency: 'THB',
+        currency: 'USDC',
         status: 'failed',
-        message: 'Failed to process claim',
+        message: error instanceof Error ? error.message : 'Claim failed',
         eligibility: {
           isEligible: false,
-          reason: 'Network error',
+          reason: error instanceof Error ? error.message : 'Transaction failed',
           noBurningDetected: false,
           proofVerified: false,
         },
       });
     } finally {
       setClaiming(false);
+      setClaimStep('');
     }
-  };
+  }, [wallet.signer, wallet.chainId, wallet.address, farmId, farm, zkTLSResult]);
 
   if (loading) {
     return (
@@ -258,15 +398,77 @@ export default function FarmOwnerPage() {
   const totalEarned = completedPayments.reduce((sum, p) => sum + p.amount, 0);
   const pendingPayments = payments.filter(p => p.status === 'pending');
 
-  // Check if can claim (has valid zkTLS proof with no burning)
-  const canClaim = zkTLSResult?.success && 
-                   zkTLSResult?.attestation?.data.noBurningDetected && 
-                   zkTLSResult?.verification?.verified &&
-                   !claiming;
+  // Check if can claim
+  const hasValidProof = zkTLSResult?.success && 
+                        zkTLSResult?.attestation?.data.noBurningDetected && 
+                        zkTLSResult?.verification?.verified;
+  
+  const canClaimOnChain = hasValidProof && 
+                          wallet.isConnected && 
+                          wallet.isCorrectChain && 
+                          contractReady &&
+                          !claiming;
+  
+  // Estimated reward in USDC
+  const estimatedRewardUSDC = farm ? Math.round(farm.area * 140) : 0;
+  const estimatedRewardTHB = farm ? Math.round(farm.area * 5000) : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-400 via-blue-500 to-purple-600 p-4 pb-8" suppressHydrationWarning>
       <div className="max-w-md mx-auto pt-6" suppressHydrationWarning>
+        
+        {/* Wallet Connection Card */}
+        <div className="bg-white rounded-3xl shadow-2xl p-4 mb-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <div className={`w-3 h-3 rounded-full ${wallet.isConnected ? (wallet.isCorrectChain ? 'bg-green-500' : 'bg-yellow-500') : 'bg-gray-300'}`}></div>
+              <span className="text-sm font-medium text-gray-700">
+                {wallet.isConnected ? getChainName(wallet.chainId) : 'Not Connected'}
+              </span>
+            </div>
+            
+            {!wallet.isConnected ? (
+              <button
+                onClick={handleConnectWallet}
+                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-bold rounded-xl hover:from-purple-700 hover:to-indigo-700 transition-all"
+              >
+                Connect Wallet
+              </button>
+            ) : (
+              <div className="flex items-center space-x-2">
+                {!wallet.isCorrectChain && (
+                  <button
+                    onClick={handleSwitchNetwork}
+                    className="px-3 py-1.5 bg-yellow-500 text-white text-xs font-bold rounded-lg hover:bg-yellow-600"
+                  >
+                    Switch to Base
+                  </button>
+                )}
+                <div className="flex items-center space-x-2 bg-gray-100 rounded-xl px-3 py-1.5">
+                  <span className="text-xs font-mono text-gray-700">{formatAddress(wallet.address!)}</span>
+                  <button onClick={handleDisconnectWallet} className="text-gray-400 hover:text-gray-600">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {walletError && (
+            <p className="mt-2 text-xs text-red-600">{walletError}</p>
+          )}
+          
+          {!isWalletInstalled() && (
+            <p className="mt-2 text-xs text-gray-500">
+              <a href="https://metamask.io" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                Install MetaMask
+              </a> to claim rewards on-chain
+            </p>
+          )}
+        </div>
+
         {/* Header Card */}
         <div className="bg-white rounded-3xl shadow-2xl p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
@@ -323,9 +525,18 @@ export default function FarmOwnerPage() {
             </div>
           </div>
           
-          <p className="text-sm text-gray-600 mb-4">
-            Generate a zkTLS proof of your clean air status to claim your THB reward (฿5,000/ha/year).
+          <p className="text-sm text-gray-600 mb-2">
+            Generate a zkTLS proof and claim your annual reward in a single on-chain transaction.
           </p>
+          
+          {/* Reward Estimate */}
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-3 mb-4 border border-green-200">
+            <p className="text-xs text-green-700 mb-1">Estimated Annual Reward</p>
+            <div className="flex items-baseline space-x-2">
+              <span className="text-2xl font-bold text-green-800">${estimatedRewardUSDC} USDC</span>
+              <span className="text-sm text-green-600">(≈฿{estimatedRewardTHB.toLocaleString()})</span>
+            </div>
+          </div>
 
           {/* Step 1: Generate Proof */}
           <div className="mb-4">
@@ -393,16 +604,73 @@ export default function FarmOwnerPage() {
                     </svg>
                     <span className="font-bold text-green-800 text-sm">No Burning Detected - Eligible!</span>
                   </div>
-                  <p className="text-xs text-green-700 font-mono break-all">
-                    Proof: {zkTLSResult.attestation.proof.hash.slice(0, 20)}...
-                  </p>
+                  <button
+                    onClick={() => setShowAttestationJson(!showAttestationJson)}
+                    className="flex items-center text-xs text-green-700 hover:text-green-900 font-medium mt-2"
+                  >
+                    <svg 
+                      className={`w-4 h-4 mr-1 transition-transform ${showAttestationJson ? 'rotate-90' : ''}`} 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                    {showAttestationJson ? 'Hide' : 'Show'} Full Attestation JSON
+                  </button>
+                  {showAttestationJson && (
+                    <div className="mt-2 p-3 bg-gray-900 rounded-lg overflow-x-auto">
+                      <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap break-all">
+{JSON.stringify({
+  attestationId: zkTLSResult.attestation.id,
+  timestamp: zkTLSResult.attestation.timestamp,
+  data: zkTLSResult.attestation.data,
+  proof: zkTLSResult.attestation.proof,
+  verification: zkTLSResult.verification,
+  onChainData: zkTLSResult.onChainData,
+  config: zkTLSResult.config,
+}, null, 2)}
+                      </pre>
+                    </div>
+                  )}
                 </div>
               ) : (
-                <div className="flex items-center">
-                  <svg className="w-5 h-5 text-red-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
-                  </svg>
-                  <span className="font-bold text-red-800 text-sm">Burning Detected - Not Eligible</span>
+                <div>
+                  <div className="flex items-center mb-2">
+                    <svg className="w-5 h-5 text-red-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
+                    </svg>
+                    <span className="font-bold text-red-800 text-sm">Burning Detected - Not Eligible</span>
+                  </div>
+                  <button
+                    onClick={() => setShowAttestationJson(!showAttestationJson)}
+                    className="flex items-center text-xs text-red-700 hover:text-red-900 font-medium mt-2"
+                  >
+                    <svg 
+                      className={`w-4 h-4 mr-1 transition-transform ${showAttestationJson ? 'rotate-90' : ''}`} 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                    {showAttestationJson ? 'Hide' : 'Show'} Full Attestation JSON
+                  </button>
+                  {showAttestationJson && zkTLSResult.attestation && (
+                    <div className="mt-2 p-3 bg-gray-900 rounded-lg overflow-x-auto">
+                      <pre className="text-xs text-red-400 font-mono whitespace-pre-wrap break-all">
+{JSON.stringify({
+  attestationId: zkTLSResult.attestation.id,
+  timestamp: zkTLSResult.attestation.timestamp,
+  data: zkTLSResult.attestation.data,
+  proof: zkTLSResult.attestation.proof,
+  verification: zkTLSResult.verification,
+  onChainData: zkTLSResult.onChainData,
+  config: zkTLSResult.config,
+}, null, 2)}
+                      </pre>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -416,13 +684,14 @@ export default function FarmOwnerPage() {
               }`}>
                 {claimResult?.success ? '✓' : '2'}
               </div>
-              <span className="text-sm font-semibold text-gray-700">Claim THB Reward</span>
+              <span className="text-sm font-semibold text-gray-700">Claim USDC Reward</span>
             </div>
+            
             <button
-              onClick={claimReward}
-              disabled={!canClaim}
+              onClick={handleClaimOnChain}
+              disabled={!canClaimOnChain}
               className={`w-full py-4 rounded-xl font-bold text-white transition-all ${
-                !canClaim
+                !canClaimOnChain
                   ? 'bg-gray-300 cursor-not-allowed'
                   : claiming
                   ? 'bg-yellow-500'
@@ -435,29 +704,39 @@ export default function FarmOwnerPage() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  Processing Payment...
+                  {claimStep || 'Processing On-Chain...'}
                 </span>
               ) : claimResult?.success ? (
                 <span className="flex items-center justify-center">
                   <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
                   </svg>
-                  Payment Received!
+                  Claimed Successfully!
                 </span>
               ) : (
                 <span className="flex items-center justify-center">
                   <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  Claim ฿{farm ? Math.round(farm.area * 5000).toLocaleString() : '0'}
+                  Claim ${estimatedRewardUSDC} USDC On-Chain
                 </span>
               )}
             </button>
-            {!canClaim && !zkTLSResult && (
+            
+            {!hasValidProof && !zkTLSResult && (
               <p className="text-xs text-gray-500 mt-2 text-center">Generate zkTLS proof first to claim reward</p>
             )}
             {zkTLSResult && !zkTLSResult.attestation?.data.noBurningDetected && (
               <p className="text-xs text-red-500 mt-2 text-center">Not eligible - burning detected in proof</p>
+            )}
+            {!wallet.isConnected && hasValidProof && (
+              <p className="text-xs text-blue-600 mt-2 text-center">Connect wallet for on-chain claiming</p>
+            )}
+            {wallet.isConnected && !wallet.isCorrectChain && (
+              <p className="text-xs text-yellow-600 mt-2 text-center">Switch to Base network for on-chain claiming</p>
+            )}
+            {wallet.isConnected && wallet.isCorrectChain && !contractReady && (
+              <p className="text-xs text-yellow-600 mt-2 text-center">On-chain contract not detected. Restart the app or check `NEXT_PUBLIC_REWARDS_CONTRACT`.</p>
             )}
           </div>
 
@@ -482,17 +761,19 @@ export default function FarmOwnerPage() {
                     </div>
                   </div>
                   <div className="space-y-2 text-sm">
-                    <div className="bg-white rounded-lg p-2">
-                      <p className="text-xs text-gray-500">Transaction Hash</p>
-                      <a 
-                        href={`https://sepolia.etherscan.io/tx/${claimResult.txHash}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 font-mono text-xs break-all"
-                      >
-                        {claimResult.txHash}
-                      </a>
-                    </div>
+                    {claimResult.txHash && (
+                      <div className="bg-white rounded-lg p-2">
+                        <p className="text-xs text-gray-500">Transaction Hash</p>
+                        <a 
+                          href={claimResult.explorerUrl || getExplorerTxUrl(claimResult.txHash, wallet.chainId || DEFAULT_CHAIN.chainId)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 font-mono text-xs break-all"
+                        >
+                          {claimResult.txHash}
+                        </a>
+                      </div>
+                    )}
                     <div className="bg-white rounded-lg p-2">
                       <p className="text-xs text-gray-500">Sent To</p>
                       <p className="font-mono text-xs text-gray-700">{claimResult.walletAddress}</p>
@@ -581,7 +862,7 @@ export default function FarmOwnerPage() {
                 </svg>
                 <h2 className="text-xl font-bold mb-2">Burning Detected</h2>
                 <p className="text-sm opacity-90">Your farm has {farm.burningIncidents} incident(s) this period</p>
-                <p className="text-xs opacity-75 mt-2">Not eligible for rewards this month</p>
+                <p className="text-xs opacity-75 mt-2">Not eligible for rewards this year</p>
               </>
             ) : (
               <>
@@ -646,7 +927,7 @@ export default function FarmOwnerPage() {
                   </div>
                   {payment.txHash && (
                     <a
-                      href={`https://sepolia.etherscan.io/tx/${payment.txHash}`}
+                      href={getExplorerTxUrl(payment.txHash, wallet.chainId || DEFAULT_CHAIN.chainId)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:text-blue-800"
@@ -664,8 +945,12 @@ export default function FarmOwnerPage() {
 
         {/* Wallet Info */}
         <div className="mt-6 bg-white bg-opacity-20 backdrop-blur-lg rounded-2xl p-4">
-          <p className="text-xs text-white opacity-75 mb-1">Your Wallet</p>
-          <p className="text-sm font-mono text-white break-all">{farm.walletAddress}</p>
+          <p className="text-xs text-white opacity-75 mb-1">
+            {wallet.isConnected ? 'Connected Wallet' : 'Farm Wallet'}
+          </p>
+          <p className="text-sm font-mono text-white break-all">
+            {wallet.isConnected ? wallet.address : farm.walletAddress}
+          </p>
         </div>
       </div>
     </div>

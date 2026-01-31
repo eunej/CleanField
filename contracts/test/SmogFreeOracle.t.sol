@@ -60,7 +60,7 @@ contract CleanFieldOracleTest is Test {
         usdt = new MockERC20();
 
         // Deploy oracle contract
-        oracle = new SmogFreeOracle(address(usdt), oracleAddress);
+        oracle = new CleanFieldOracle(address(usdt), oracleAddress);
 
         // Mint USDT to contract for rewards
         usdt.mint(address(oracle), 10000 * 10**6);
