@@ -5,11 +5,11 @@ import {IERC20} from "forge-std/interfaces/IERC20.sol";
 import {Ownable} from "./utils/Ownable.sol";
 
 /**
- * @title SmogFreeOracle
+ * @title CleanFieldOracle
  * @dev Smart contract for managing clean air incentive payments to farmers
  * @notice This contract uses zkTLS proofs to verify "No Burning" status from GISTDA portal
  */
-contract SmogFreeOracle is Ownable {
+contract CleanFieldOracle is Ownable {
     // USDT token interface
     IERC20 public immutable usdtToken;
 

@@ -5,7 +5,7 @@ export const MOCK_FARMS: Farm[] = [
   {
     id: 'farm1',
     name: 'Green Valley Farm',
-    owner: 'Somchai Patel',
+    owner: 'สมชาย ใจดี',
     walletAddress: '0x1234567890123456789012345678901234567890',
     location: { lat: 13.7563, lng: 100.5018 },
     area: 25.5,
@@ -19,7 +19,7 @@ export const MOCK_FARMS: Farm[] = [
   {
     id: 'farm2',
     name: 'Sunrise Orchards',
-    owner: 'Niran Kumar',
+    owner: 'นิรันดร์ สุขสวัสดิ์',
     walletAddress: '0x2345678901234567890123456789012345678901',
     location: { lat: 14.3532, lng: 100.5698 },
     area: 18.2,
@@ -33,7 +33,7 @@ export const MOCK_FARMS: Farm[] = [
   {
     id: 'farm3',
     name: 'Golden Harvest Fields',
-    owner: 'Apinya Wong',
+    owner: 'อภิญญา วงศ์สกุล',
     walletAddress: '0x3456789012345678901234567890123456789012',
     location: { lat: 15.8700, lng: 100.9925 },
     area: 42.0,
@@ -47,7 +47,7 @@ export const MOCK_FARMS: Farm[] = [
   {
     id: 'farm4',
     name: 'River Bend Agriculture',
-    owner: 'Kittisak Chen',
+    owner: 'กิตติศักดิ์ เจริญผล',
     walletAddress: '0x4567890123456789012345678901234567890123',
     location: { lat: 16.4419, lng: 102.8359 },
     area: 33.7,
@@ -61,7 +61,7 @@ export const MOCK_FARMS: Farm[] = [
   {
     id: 'farm5',
     name: 'Mountain View Plantation',
-    owner: 'Pranee Singh',
+    owner: 'ปราณี ศรีสุข',
     walletAddress: '0x5678901234567890123456789012345678901234',
     location: { lat: 18.7883, lng: 98.9853 },
     area: 51.3,

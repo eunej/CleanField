@@ -4,6 +4,96 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Farm, InsurancePayment } from '@/lib/types/farm';
 
+interface VerificationResult {
+  success: boolean;
+  farmId: string;
+  farmName: string;
+  location: { lat: number; lng: number };
+  verification?: {
+    hotspotsDetected: number;
+    noBurningDetected: boolean;
+    eligible: boolean;
+    checkDate: string;
+    proofHash: string;
+    hotspots: Array<{
+      objectId: number;
+      latitude: number;
+      longitude: number;
+      acqDate: string;
+      confidence: string;
+      brightness: number;
+      luName: string;
+    }>;
+  };
+  error?: string;
+}
+
+interface ZkTLSAttestationResult {
+  success: boolean;
+  farmId: string;
+  farmName: string;
+  owner: string;
+  attestation?: {
+    id: string;
+    timestamp: number;
+    data: {
+      farmId: string;
+      gistdaId: string;
+      noBurningDetected: boolean;
+      hotspotsCount: number;
+      checkDate: string;
+      location: { lat: number; lng: number };
+    };
+    proof: {
+      hash: string;
+      signature: string;
+      attestorPublicKey: string;
+    };
+  };
+  verification?: {
+    verified: boolean;
+    error?: string;
+  };
+  onChainData?: {
+    farmId: string;
+    proofHash: string;
+    noBurningDetected: boolean;
+    timestamp: number;
+  };
+  config?: {
+    appId: string;
+    templateId: string;
+    mode: string;
+  };
+  error?: string;
+}
+
+interface ClaimResult {
+  success: boolean;
+  farmId: string;
+  walletAddress: string;
+  amount: number;
+  currency: string;
+  txHash?: string;
+  status: string;
+  message: string;
+  claimedAt?: string;
+  eligibility: {
+    isEligible: boolean;
+    reason: string;
+    noBurningDetected: boolean;
+    proofVerified: boolean;
+    lastClaimDate?: string;
+    nextClaimDate?: string;
+  };
+  config?: {
+    rewardPerHectare: number;
+    currency: string;
+    claimPeriodDays: number;
+    network: string;
+  };
+}
+
 export default function FarmOwnerPage() {
   const params = useParams();
   const farmId = params.id as string;
@@ -11,6 +101,12 @@ export default function FarmOwnerPage() {
   const [farm, setFarm] = useState<Farm | null>(null);
   const [payments, setPayments] = useState<InsurancePayment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [verifying, setVerifying] = useState(false);
+  const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
+  const [zkTLSAttesting, setZkTLSAttesting] = useState(false);
+  const [zkTLSResult, setZkTLSResult] = useState<ZkTLSAttestationResult | null>(null);
+  const [claiming, setClaiming] = useState(false);
+  const [claimResult, setClaimResult] = useState<ClaimResult | null>(null);
 
   useEffect(() => {
     fetchFarmData();
@@ -29,10 +125,114 @@ export default function FarmOwnerPage() {
     }
   };
 
+  const verifyWithGISTDA = async () => {
+    setVerifying(true);
+    setVerificationResult(null);
+    
+    try {
+      const response = await fetch(`/api/farms/${farmId}/verify`, {
+        method: 'POST',
+      });
+      const data: VerificationResult = await response.json();
+      setVerificationResult(data);
+    } catch (error) {
+      console.error('Error verifying with GISTDA:', error);
+      setVerificationResult({
+        success: false,
+        farmId,
+        farmName: farm?.name || '',
+        location: farm?.location || { lat: 0, lng: 0 },
+        error: 'Failed to connect to verification service',
+      });
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const createZkTLSAttestation = async () => {
+    setZkTLSAttesting(true);
+    setZkTLSResult(null);
+    setClaimResult(null);
+    
+    try {
+      const response = await fetch('/api/zktls/attest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          farmId,
+          userAddress: farm?.walletAddress || '0x0000000000000000000000000000000000000000',
+        }),
+      });
+      const data: ZkTLSAttestationResult = await response.json();
+      setZkTLSResult(data);
+    } catch (error) {
+      console.error('Error creating zkTLS attestation:', error);
+      setZkTLSResult({
+        success: false,
+        farmId,
+        farmName: farm?.name || '',
+        owner: farm?.owner || '',
+        error: 'Failed to connect to zkTLS service',
+      });
+    } finally {
+      setZkTLSAttesting(false);
+    }
+  };
+
+  const claimReward = async () => {
+    if (!zkTLSResult?.attestation) {
+      alert('Please generate a zkTLS proof first');
+      return;
+    }
+
+    setClaiming(true);
+    setClaimResult(null);
+
+    try {
+      const response = await fetch('/api/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          farmId,
+          attestationId: zkTLSResult.attestation.id,
+          proofHash: zkTLSResult.attestation.proof.hash,
+          noBurningDetected: zkTLSResult.attestation.data.noBurningDetected,
+          timestamp: zkTLSResult.attestation.timestamp,
+        }),
+      });
+      const data: ClaimResult = await response.json();
+      setClaimResult(data);
+
+      // Refresh farm data if claim was successful
+      if (data.success) {
+        fetchFarmData();
+      }
+    } catch (error) {
+      console.error('Error claiming reward:', error);
+      setClaimResult({
+        success: false,
+        farmId,
+        walletAddress: farm?.walletAddress || '',
+        amount: 0,
+        currency: 'THB',
+        status: 'failed',
+        message: 'Failed to process claim',
+        eligibility: {
+          isEligible: false,
+          reason: 'Network error',
+          noBurningDetected: false,
+          proofVerified: false,
+        },
+      });
+    } finally {
+      setClaiming(false);
+    }
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center p-4">
-        <div className="text-center">
+      <div className="min-h-screen bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center p-4" suppressHydrationWarning>
+        <div className="text-center" suppressHydrationWarning>
           <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-white mx-auto"></div>
           <p className="mt-4 text-white text-lg font-medium">Loading...</p>
         </div>
@@ -42,8 +242,8 @@ export default function FarmOwnerPage() {
 
   if (!farm) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-400 to-orange-500 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
+      <div className="min-h-screen bg-gradient-to-br from-red-400 to-orange-500 flex items-center justify-center p-4" suppressHydrationWarning>
+        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center" suppressHydrationWarning>
           <svg className="w-20 h-20 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
@@ -58,9 +258,15 @@ export default function FarmOwnerPage() {
   const totalEarned = completedPayments.reduce((sum, p) => sum + p.amount, 0);
   const pendingPayments = payments.filter(p => p.status === 'pending');
 
+  // Check if can claim (has valid zkTLS proof with no burning)
+  const canClaim = zkTLSResult?.success && 
+                   zkTLSResult?.attestation?.data.noBurningDetected && 
+                   zkTLSResult?.verification?.verified &&
+                   !claiming;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-400 via-blue-500 to-purple-600 p-4 pb-8">
-      <div className="max-w-md mx-auto pt-6">
+    <div className="min-h-screen bg-gradient-to-br from-green-400 via-blue-500 to-purple-600 p-4 pb-8" suppressHydrationWarning>
+      <div className="max-w-md mx-auto pt-6" suppressHydrationWarning>
         {/* Header Card */}
         <div className="bg-white rounded-3xl shadow-2xl p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
@@ -94,6 +300,271 @@ export default function FarmOwnerPage() {
               </p>
             </div>
           </div>
+
+          {/* Location Info */}
+          <div className="mt-4 bg-blue-50 rounded-xl p-3">
+            <p className="text-xs text-blue-600 font-semibold mb-1">Farm Location</p>
+            <p className="text-sm text-blue-800 font-mono">
+              {farm.location.lat.toFixed(4)}°N, {farm.location.lng.toFixed(4)}°E
+            </p>
+          </div>
+        </div>
+
+        {/* zkTLS Verification & Claim Card */}
+        <div className="bg-white rounded-3xl shadow-2xl p-6 mb-6 border-2 border-purple-200">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <div className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full p-2 mr-3">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold text-gray-800">Clean Air Incentive</h3>
+            </div>
+          </div>
+          
+          <p className="text-sm text-gray-600 mb-4">
+            Generate a zkTLS proof of your clean air status to claim your THB reward (฿5,000/ha/year).
+          </p>
+
+          {/* Step 1: Generate Proof */}
+          <div className="mb-4">
+            <div className="flex items-center mb-2">
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-2 ${
+                zkTLSResult?.success ? 'bg-green-500 text-white' : 'bg-purple-100 text-purple-700'
+              }`}>
+                {zkTLSResult?.success ? '✓' : '1'}
+              </div>
+              <span className="text-sm font-semibold text-gray-700">Generate zkTLS Proof</span>
+            </div>
+            <button
+              onClick={createZkTLSAttestation}
+              disabled={zkTLSAttesting}
+              className={`w-full py-3 rounded-xl font-bold text-white transition-all ${
+                zkTLSAttesting
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : zkTLSResult?.success
+                  ? 'bg-green-500 hover:bg-green-600'
+                  : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700'
+              } shadow-lg`}
+            >
+              {zkTLSAttesting ? (
+                <span className="flex items-center justify-center">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Creating Attestation...
+                </span>
+              ) : zkTLSResult?.success ? (
+                <span className="flex items-center justify-center">
+                  <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                  </svg>
+                  Proof Generated - Regenerate
+                </span>
+              ) : (
+                <span className="flex items-center justify-center">
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                  Generate zkTLS Proof
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* zkTLS Result */}
+          {zkTLSResult && (
+            <div className={`mb-4 rounded-xl p-3 ${
+              zkTLSResult.error 
+                ? 'bg-yellow-50 border border-yellow-200'
+                : zkTLSResult.attestation?.data.noBurningDetected
+                ? 'bg-green-50 border border-green-200'
+                : 'bg-red-50 border border-red-200'
+            }`}>
+              {zkTLSResult.error ? (
+                <p className="text-sm text-yellow-700">{zkTLSResult.error}</p>
+              ) : zkTLSResult.attestation?.data.noBurningDetected ? (
+                <div>
+                  <div className="flex items-center mb-2">
+                    <svg className="w-5 h-5 text-green-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                    </svg>
+                    <span className="font-bold text-green-800 text-sm">No Burning Detected - Eligible!</span>
+                  </div>
+                  <p className="text-xs text-green-700 font-mono break-all">
+                    Proof: {zkTLSResult.attestation.proof.hash.slice(0, 20)}...
+                  </p>
+                </div>
+              ) : (
+                <div className="flex items-center">
+                  <svg className="w-5 h-5 text-red-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
+                  </svg>
+                  <span className="font-bold text-red-800 text-sm">Burning Detected - Not Eligible</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 2: Claim Reward */}
+          <div className="mb-4">
+            <div className="flex items-center mb-2">
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-2 ${
+                claimResult?.success ? 'bg-green-500 text-white' : 'bg-purple-100 text-purple-700'
+              }`}>
+                {claimResult?.success ? '✓' : '2'}
+              </div>
+              <span className="text-sm font-semibold text-gray-700">Claim THB Reward</span>
+            </div>
+            <button
+              onClick={claimReward}
+              disabled={!canClaim}
+              className={`w-full py-4 rounded-xl font-bold text-white transition-all ${
+                !canClaim
+                  ? 'bg-gray-300 cursor-not-allowed'
+                  : claiming
+                  ? 'bg-yellow-500'
+                  : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700'
+              } shadow-lg`}
+            >
+              {claiming ? (
+                <span className="flex items-center justify-center">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Processing Payment...
+                </span>
+              ) : claimResult?.success ? (
+                <span className="flex items-center justify-center">
+                  <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                  </svg>
+                  Payment Received!
+                </span>
+              ) : (
+                <span className="flex items-center justify-center">
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Claim ฿{farm ? Math.round(farm.area * 5000).toLocaleString() : '0'}
+                </span>
+              )}
+            </button>
+            {!canClaim && !zkTLSResult && (
+              <p className="text-xs text-gray-500 mt-2 text-center">Generate zkTLS proof first to claim reward</p>
+            )}
+            {zkTLSResult && !zkTLSResult.attestation?.data.noBurningDetected && (
+              <p className="text-xs text-red-500 mt-2 text-center">Not eligible - burning detected in proof</p>
+            )}
+          </div>
+
+          {/* Claim Result */}
+          {claimResult && (
+            <div className={`rounded-xl p-4 ${
+              claimResult.success 
+                ? 'bg-green-50 border-2 border-green-200'
+                : 'bg-red-50 border-2 border-red-200'
+            }`}>
+              {claimResult.success ? (
+                <>
+                  <div className="flex items-center mb-3">
+                    <div className="bg-green-500 rounded-full p-2 mr-3">
+                      <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="font-bold text-green-800">Payment Successful!</p>
+                      <p className="text-2xl font-bold text-green-900">{claimResult.amount} {claimResult.currency}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <div className="bg-white rounded-lg p-2">
+                      <p className="text-xs text-gray-500">Transaction Hash</p>
+                      <a 
+                        href={`https://sepolia.etherscan.io/tx/${claimResult.txHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 font-mono text-xs break-all"
+                      >
+                        {claimResult.txHash}
+                      </a>
+                    </div>
+                    <div className="bg-white rounded-lg p-2">
+                      <p className="text-xs text-gray-500">Sent To</p>
+                      <p className="font-mono text-xs text-gray-700">{claimResult.walletAddress}</p>
+                    </div>
+                    {claimResult.eligibility.nextClaimDate && (
+                      <div className="bg-white rounded-lg p-2">
+                        <p className="text-xs text-gray-500">Next Claim Available</p>
+                        <p className="text-sm text-gray-700">
+                          {new Date(claimResult.eligibility.nextClaimDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center mb-2">
+                    <svg className="w-6 h-6 text-red-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <span className="font-bold text-red-800">Claim Failed</span>
+                  </div>
+                  <p className="text-sm text-red-700">{claimResult.message}</p>
+                  <p className="text-xs text-red-600 mt-2">{claimResult.eligibility.reason}</p>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* GISTDA Direct Check Card */}
+        <div className="bg-white rounded-3xl shadow-2xl p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-gray-800">GISTDA Direct Check</h3>
+            <div className="bg-blue-100 rounded-full p-2">
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
+          
+          <button
+            onClick={verifyWithGISTDA}
+            disabled={verifying}
+            className={`w-full py-3 rounded-xl font-bold text-white transition-all ${
+              verifying
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 shadow-lg hover:shadow-xl'
+            }`}
+          >
+            {verifying ? 'Checking...' : 'Check GISTDA Satellite Data'}
+          </button>
+
+          {verificationResult && (
+            <div className={`mt-3 rounded-xl p-3 ${
+              verificationResult.error 
+                ? 'bg-yellow-50 border border-yellow-200'
+                : verificationResult.verification?.noBurningDetected
+                ? 'bg-green-50 border border-green-200'
+                : 'bg-red-50 border border-red-200'
+            }`}>
+              <p className={`text-sm font-semibold ${
+                verificationResult.error ? 'text-yellow-700' :
+                verificationResult.verification?.noBurningDetected ? 'text-green-700' : 'text-red-700'
+              }`}>
+                {verificationResult.error || 
+                 (verificationResult.verification?.noBurningDetected 
+                   ? '✓ No hotspots detected' 
+                   : `⚠️ ${verificationResult.verification?.hotspotsDetected} hotspot(s) found`)}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Status Card */}
@@ -131,7 +602,7 @@ export default function FarmOwnerPage() {
 
           <div className="bg-gradient-to-r from-yellow-400 to-orange-400 rounded-2xl p-6 mb-4 text-white">
             <p className="text-sm opacity-90 mb-1">Total Earned</p>
-            <p className="text-4xl font-bold">${totalEarned} USDT</p>
+            <p className="text-4xl font-bold">฿{totalEarned.toLocaleString()}</p>
             <p className="text-xs opacity-75 mt-2">{completedPayments.length} payment(s) received</p>
           </div>
 
@@ -140,7 +611,7 @@ export default function FarmOwnerPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold text-blue-800">Pending Reward</p>
-                  <p className="text-2xl font-bold text-blue-900">${pendingPayments[0].amount} USDT</p>
+                  <p className="text-2xl font-bold text-blue-900">฿{pendingPayments[0].amount.toLocaleString()}</p>
                 </div>
                 <div className="bg-blue-200 rounded-full p-3">
                   <svg className="w-6 h-6 text-blue-700 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -151,13 +622,6 @@ export default function FarmOwnerPage() {
             </div>
           )}
 
-          {farm.insuranceStatus === 'active' && !farm.hasBurning && (
-            <div className="bg-green-50 rounded-2xl p-4 border-2 border-green-200">
-              <p className="text-sm font-semibold text-green-800 mb-1">Next Reward Available</p>
-              <p className="text-2xl font-bold text-green-900">${farm.rewardAmount} USDT</p>
-              <p className="text-xs text-green-700 mt-2">Keep your farm clean to claim!</p>
-            </div>
-          )}
         </div>
 
         {/* Payment History */}
@@ -174,7 +638,7 @@ export default function FarmOwnerPage() {
                       </svg>
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-800">${payment.amount} USDT</p>
+                      <p className="font-semibold text-gray-800">฿{payment.amount.toLocaleString()}</p>
                       <p className="text-xs text-gray-500">
                         {new Date(payment.timestamp).toLocaleDateString()}
                       </p>

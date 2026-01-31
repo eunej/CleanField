@@ -1,4 +1,4 @@
-# Project Setup Complete - Smog-Free Farmer Oracle
+# Project Setup Complete - CleanField
 
 ## What Has Been Created
 
@@ -37,7 +37,7 @@ Your hackathon project is now fully initialized and ready for development! Here'
 
 ### 2. Smart Contracts (Foundry) ✅
 
-**SmogFreeOracle.sol**
+**CleanFieldOracle.sol**
 - Main insurance contract with:
   - Farm registration system
   - zkTLS proof submission (oracle-only)
@@ -94,7 +94,7 @@ Your hackathon project is now fully initialized and ready for development! Here'
 ## Project Structure
 
 ```
-smog-free-oracle/
+cleanfield/
 ├── app/
 │   ├── page.tsx                    # Admin dashboard
 │   ├── farm/[id]/page.tsx         # Farm owner mobile views
@@ -103,10 +103,10 @@ smog-free-oracle/
 │       └── farms/[id]/route.ts    # Single farm API
 ├── contracts/
 │   ├── src/
-│   │   ├── SmogFreeOracle.sol    # Main contract
+│   │   ├── CleanFieldOracle.sol    # Main contract
 │   │   └── utils/Ownable.sol      # Access control
 │   ├── test/
-│   │   └── SmogFreeOracle.t.sol  # Contract tests
+│   │   └── CleanFieldOracle.t.sol  # Contract tests
 │   └── script/
 │       └── Deploy.s.sol           # Deployment script
 ├── lib/
@@ -123,7 +123,7 @@ smog-free-oracle/
 
 ### Quick Start
 ```bash
-cd smog-free-oracle
+cd cleanfield
 ./start.sh
 ```
 
@@ -203,7 +203,7 @@ See `docs/zkTLS_INTEGRATION.md` for complete details with:
 ### Sepolia Testnet
 ```bash
 cd contracts
-forge script script/Deploy.s.sol:DeploySmogFreeOracle \
+forge script script/Deploy.s.sol:DeployCleanFieldOracle \
   --rpc-url $SEPOLIA_RPC_URL \
   --broadcast \
   --verify

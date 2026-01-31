@@ -1,8 +1,8 @@
-# zkTLS Integration Recommendations for Smog-Free Farmer Oracle
+# zkTLS Integration Recommendations for CleanField
 
 ## Executive Summary
 
-This document outlines recommended integration points for zkTLS technology in the Smog-Free Farmer Oracle project. zkTLS enables verification of real-world data from TLS-secured websites without requiring server modifications, making it ideal for authenticating government portal data.
+This document outlines recommended integration points for zkTLS technology in the CleanField project. zkTLS enables verification of real-world data from TLS-secured websites without requiring server modifications, making it ideal for authenticating government portal data.
 
 ## What is zkTLS?
 
@@ -27,7 +27,7 @@ zkTLS (zero-knowledge Transport Layer Security) verifies the authenticity of TLS
 
 **Implementation**:
 ```solidity
-// In SmogFreeOracle.sol - already implemented
+// In CleanFieldOracle.sol - already implemented
 function submitProof(
     string memory _farmId,
     bytes32 _proofHash,  // zkTLS proof hash
@@ -244,7 +244,7 @@ export async function POST(request: Request) {
 ### Smart Contract: Verify and Store Proof
 
 ```solidity
-// Already implemented in SmogFreeOracle.sol
+// Already implemented in CleanFieldOracle.sol
 function submitProof(
     string memory _farmId,
     bytes32 _proofHash,
@@ -305,13 +305,13 @@ function submitProof(
 - **Primus Labs Documentation**: https://docs.primuslabs.xyz/
 - **GISTDA Portal**: https://gistda.or.th/ (Thai Government GIS)
 - **FIRMS Fire Data**: https://firms.modaps.eosdis.nasa.gov/
-- **Smart Contract**: `contracts/src/SmogFreeOracle.sol`
+- **Smart Contract**: `contracts/src/SmogFreeOracle.sol` (contract name: CleanFieldOracle)
 
 ---
 
 ## Conclusion
 
-zkTLS provides the perfect solution for the Smog-Free Farmer Oracle project by enabling trustless verification of government portal data. The recommended implementation focuses on verifying GISTDA "No Burning" status as the primary use case, with opportunities to expand to historical compliance, farm registration, and satellite data verification in future phases.
+zkTLS provides the perfect solution for the CleanField project by enabling trustless verification of government portal data. The recommended implementation focuses on verifying GISTDA "No Burning" status as the primary use case, with opportunities to expand to historical compliance, farm registration, and satellite data verification in future phases.
 
 This approach eliminates the need for:
 - Centralized oracle infrastructure

@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Smog-Free Farmer Oracle Quick Start Script
+# CleanField Quick Start Script
 
-echo "🌱 Starting Smog-Free Farmer Oracle..."
+echo "🌱 Starting CleanField..."
 echo ""
 
 # Check if node_modules exists

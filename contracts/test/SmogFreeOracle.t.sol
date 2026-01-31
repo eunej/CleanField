@@ -2,7 +2,7 @@
 pragma solidity ^0.8.19;
 
 import {Test} from "forge-std/Test.sol";
-import {SmogFreeOracle} from "../src/SmogFreeOracle.sol";
+import {CleanFieldOracle} from "../src/SmogFreeOracle.sol";
 import {IERC20} from "forge-std/interfaces/IERC20.sol";
 
 contract MockERC20 is IERC20 {
@@ -42,8 +42,8 @@ contract MockERC20 is IERC20 {
     }
 }
 
-contract SmogFreeOracleTest is Test {
-    SmogFreeOracle public oracle;
+contract CleanFieldOracleTest is Test {
+    CleanFieldOracle public oracle;
     MockERC20 public usdt;
 
     address public owner = address(1);
@@ -72,7 +72,7 @@ contract SmogFreeOracleTest is Test {
         vm.prank(farmer1);
         oracle.registerFarm("farm1", "GISTDA001");
 
-        SmogFreeOracle.Farm memory farm = oracle.getFarmDetails("farm1");
+        CleanFieldOracle.Farm memory farm = oracle.getFarmDetails("farm1");
         assertEq(farm.owner, farmer1);
         assertEq(farm.farmId, "farm1");
         assertEq(farm.gistdaId, "GISTDA001");
@@ -127,7 +127,7 @@ contract SmogFreeOracleTest is Test {
 
         // Try to claim reward - should fail
         vm.prank(farmer1);
-        vm.expectRevert(SmogFreeOracle.BurningDetected.selector);
+        vm.expectRevert(CleanFieldOracle.BurningDetected.selector);
         oracle.claimReward("farm1");
     }
 
@@ -142,7 +142,7 @@ contract SmogFreeOracleTest is Test {
 
         // Try to claim immediately - should fail
         vm.prank(farmer1);
-        vm.expectRevert(SmogFreeOracle.ClaimTooSoon.selector);
+        vm.expectRevert(CleanFieldOracle.ClaimTooSoon.selector);
         oracle.claimReward("farm1");
     }
 
@@ -153,7 +153,7 @@ contract SmogFreeOracleTest is Test {
 
         // Try to submit proof as non-oracle
         vm.prank(farmer1);
-        vm.expectRevert(SmogFreeOracle.UnauthorizedOracle.selector);
+        vm.expectRevert(CleanFieldOracle.UnauthorizedOracle.selector);
         oracle.submitProof("farm1", keccak256("proof1"), true);
     }
 

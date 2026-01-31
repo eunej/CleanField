@@ -1,0 +1,249 @@
+[00:00:01.078] Server  LOG     ✓ Ready in 819ms
+[00:00:01.977] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:00:14.234] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:00:14.373] Browser ERROR   A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload globalError={[...]} webSocket={WebSocket} staticIndicatorState={{pathname:null, ...}}>
+      <AppDevOverlayErrorBoundary globalError={[...]}>
+        <ReplaySsrOnlyErrors>
+        <DevRootHTTPAccessFallbackBoundary>
+          <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+            <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+              <RedirectBoundary>
+                <RedirectErrorBoundary router={{...}}>
+                  <Head headCacheNode={{rsc:<Fragment>, ...}}>
+                    <__next_viewport_boundary__>
+                    <MetadataWrapper>
+                      <div
+                        hidden={true}
+-                       style={{user-select:"auto"}}
+                      >
+                    ...
+                  <__next_root_layout_boundary__>
+                    <SegmentViewNode type="layout" pagePath="layout.tsx">
+                      <SegmentTrieNode>
+                      <link>
+                      <script>
+                      <RootLayout>
+                        <html lang="en" suppressHydrationWarning={true}>
+                          <head
+-                           style={{user-select:"auto"}}
+                          >
+                            <script
+                              dangerouslySetInnerHTML={{__html:"\n        ..."}}
+-                             style={{user-select:"auto"}}
+                            >
+                          ...
+                            <AdminPage params={Promise} searchParams={Promise}>
+                              <div className="min-h-scre..." suppressHydrationWarning={true}>
+                                <div className="max-w-7xl ..." suppressHydrationWarning={true}>
+                                  <div className="flex justi..." suppressHydrationWarning={true}>
+                                    <div
+-                                     style={{user-select:"auto"}}
+                                    >
+                                      <h1
+                                        className="text-4xl font-bold text-gray-800 mb-2"
+-                                       style={{user-select:"auto"}}
+                                      >
++                                       Smog-Free Farmer Oracle
+                                      <p
+                                        className="text-gray-600"
+-                                       style={{user-select:"auto"}}
+                                      >
++                                       Clean Air Incentive Management System with Primus zkTLS
+                                    <div
+                                      className="flex gap-3"
+-                                     style={{user-select:"auto"}}
+                                    >
+                                      <button
+                                        onClick={function handleVerifyAll}
+                                        disabled={false}
+                                        className="px-5 py-3 rounded-lg transition-colors shadow-lg flex items-center ..."
+-                                       style={{user-select:"auto"}}
+                                      >
+                                        <svg
+                                          className="w-4 h-4 mr-2"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          viewBox="0 0 24 24"
+-                                         style={{user-select:"auto"}}
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+-                                           style={{user-select:"auto"}}
+                                          >
+                                        ...
+                                      <button
+                                        onClick={function handleZkTLSBatchAttest}
+                                        disabled={false}
+                                        className="px-5 py-3 rounded-lg transition-colors shadow-lg flex items-center ..."
+-                                       style={{user-select:"auto"}}
+                                      >
+                                        <svg
+                                          className="w-4 h-4 mr-2"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          viewBox="0 0 24 24"
+-                                         style={{user-select:"auto"}}
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002..."
+-                                           style={{user-select:"auto"}}
+                                          >
+                                        ...
+                                  <div
+                                    className="text-center py-12"
+-                                   style={{user-select:"auto"}}
+                                  >
+                                    <div
+                                      className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"
+-                                     style={{user-select:"auto"}}
+                                    >
+                                    <p
+                                      className="mt-4 text-gray-600"
+-                                     style={{user-select:"auto"}}
+                                    >
++                                     Loading farms...
+                  ...
+
+[00:00:19.227] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:37:44.199] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:37:44.333] Browser ERROR   A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+%s%s https://react.dev/link/hydration-mismatch 
+
+  ...
+    <HotReload globalError={[...]} webSocket={WebSocket} staticIndicatorState={{pathname:null, ...}}>
+      <AppDevOverlayErrorBoundary globalError={[...]}>
+        <ReplaySsrOnlyErrors>
+        <DevRootHTTPAccessFallbackBoundary>
+          <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+            <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+              <RedirectBoundary>
+                <RedirectErrorBoundary router={{...}}>
+                  <Head headCacheNode={{rsc:<Fragment>, ...}}>
+                    <__next_viewport_boundary__>
+                    <MetadataWrapper>
+                      <div
+                        hidden={true}
+-                       style={{user-select:"auto"}}
+                      >
+                    ...
+                  <__next_root_layout_boundary__>
+                    <SegmentViewNode type="layout" pagePath="layout.tsx">
+                      <SegmentTrieNode>
+                      <link>
+                      <script>
+                      <RootLayout>
+                        <html lang="en" suppressHydrationWarning={true}>
+                          <head
+-                           style={{user-select:"auto"}}
+                          >
+                            <script
+                              dangerouslySetInnerHTML={{__html:"\n        ..."}}
+-                             style={{user-select:"auto"}}
+                            >
+                          ...
+                            <AdminPage params={Promise} searchParams={Promise}>
+                              <div className="min-h-scre..." suppressHydrationWarning={true}>
+                                <div className="max-w-7xl ..." suppressHydrationWarning={true}>
+                                  <div className="flex justi..." suppressHydrationWarning={true}>
+                                    <div
+-                                     style={{user-select:"auto"}}
+                                    >
+                                      <h1
+                                        className="text-4xl font-bold text-gray-800 mb-2"
+-                                       style={{user-select:"auto"}}
+                                      >
++                                       Smog-Free Farmer Oracle
+                                      <p
+                                        className="text-gray-600"
+-                                       style={{user-select:"auto"}}
+                                      >
++                                       Clean Air Incentive Management System with Primus zkTLS
+                                    <div
+                                      className="flex gap-3"
+-                                     style={{user-select:"auto"}}
+                                    >
+                                      <button
+                                        onClick={function handleVerifyAll}
+                                        disabled={false}
+                                        className="px-5 py-3 rounded-lg transition-colors shadow-lg flex items-center ..."
+-                                       style={{user-select:"auto"}}
+                                      >
+                                        <svg
+                                          className="w-4 h-4 mr-2"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          viewBox="0 0 24 24"
+-                                         style={{user-select:"auto"}}
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+-                                           style={{user-select:"auto"}}
+                                          >
+                                        ...
+                                      <button
+                                        onClick={function handleZkTLSBatchAttest}
+                                        disabled={false}
+                                        className="px-5 py-3 rounded-lg transition-colors shadow-lg flex items-center ..."
+-                                       style={{user-select:"auto"}}
+                                      >
+                                        <svg
+                                          className="w-4 h-4 mr-2"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          viewBox="0 0 24 24"
+-                                         style={{user-select:"auto"}}
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002..."
+-                                           style={{user-select:"auto"}}
+                                          >
+                                        ...
+                                  <div
+                                    className="text-center py-12"
+-                                   style={{user-select:"auto"}}
+                                  >
+                                    <div
+                                      className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"
+-                                     style={{user-select:"auto"}}
+                                    >
+                                    <p
+                                      className="mt-4 text-gray-600"
+-                                     style={{user-select:"auto"}}
+                                    >
++                                     Loading farms...
+                  ...
+

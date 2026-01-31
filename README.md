@@ -1,10 +1,10 @@
-# Smog-Free Farmer Oracle
+# CleanField
 
 A blockchain-based clean air incentive system for farmers using zkTLS technology to verify "No Burning" status from government portals.
 
 ## Project Overview
 
-The Smog-Free Farmer Oracle addresses the carbon credit and air quality challenge in agricultural regions. Farmers who avoid crop burning receive stablecoin rewards (USDT) based on cryptographically verified data from the Thai Government's GISTDA portal.
+CleanField addresses the carbon credit and air quality challenge in agricultural regions. Farmers who avoid crop burning receive stablecoin rewards (USDT) based on cryptographically verified data from the Thai Government's GISTDA portal.
 
 ### Key Features
 
@@ -36,7 +36,7 @@ The Smog-Free Farmer Oracle addresses the carbon credit and air quality challeng
 ## Project Structure
 
 ```
-smog-free-oracle/
+cleanfield/
 ├── app/                          # Next.js app directory
 │   ├── page.tsx                 # Admin dashboard
 │   ├── farm/[id]/page.tsx       # Farm owner mobile view
@@ -45,7 +45,7 @@ smog-free-oracle/
 │       └── farms/[id]/route.ts  # Get farm details
 ├── contracts/                    # Foundry smart contracts
 │   ├── src/
-│   │   ├── SmogFreeOracle.sol  # Main insurance contract
+│   │   ├── CleanFieldOracle.sol  # Main insurance contract
 │   │   └── utils/Ownable.sol    # Access control
 │   ├── test/                    # Contract tests
 │   ├── script/Deploy.s.sol      # Deployment script
@@ -72,7 +72,7 @@ smog-free-oracle/
 1. **Clone the repository**
 ```bash
 git clone <repository-url>
-cd smog-free-oracle
+cd cleanfield
 ```
 
 2. **Install frontend dependencies**
@@ -136,7 +136,7 @@ Access individual farm views at:
 2. **Deploy the contract**
 ```bash
 cd contracts
-forge script script/Deploy.s.sol:DeploySmogFreeOracle --rpc-url $SEPOLIA_RPC_URL --broadcast --verify
+forge script script/Deploy.s.sol:DeployCleanFieldOracle --rpc-url $SEPOLIA_RPC_URL --broadcast --verify
 ```
 
 3. **Update `.env.local` with contract address**
@@ -241,7 +241,7 @@ Tests cover:
 
 ## Deployment Checklist
 
-- [ ] Deploy SmogFreeOracle contract to Sepolia
+- [ ] Deploy CleanFieldOracle contract to Sepolia
 - [ ] Deploy or use existing USDT contract
 - [ ] Fund contract with USDT for rewards
 - [ ] Set oracle address in contract
