@@ -4,12 +4,12 @@ A blockchain-based clean air incentive system for farmers using zkTLS technology
 
 ## Project Overview
 
-CleanField addresses the carbon credit and air quality challenge in agricultural regions. Farmers who avoid crop burning receive stablecoin rewards (USDT) based on cryptographically verified data from the Thai Government's GISTDA portal.
+CleanField addresses the carbon credit and air quality challenge in agricultural regions. Farmers who avoid crop burning receive stablecoin rewards (USDC) based on cryptographically verified data from the Thai Government's GISTDA portal.
 
 ### Key Features
 
 - **zkTLS Integration**: Trustless verification of government portal data
-- **Smart Contract Insurance**: Automated USDT rewards for clean farming
+- **Smart Contract Insurance**: Automated USDC rewards for clean farming
 - **Admin Dashboard**: Monitor all registered farms and burning incidents
 - **Mobile-First Farmer Interface**: Easy access to rewards and payment history
 - **Sepolia Testnet Deployment**: Production-ready smart contracts
@@ -26,7 +26,7 @@ CleanField addresses the carbon credit and air quality challenge in agricultural
 - **Solidity ^0.8.19**: Smart contract language
 - **Foundry**: Development framework
 - **Sepolia Testnet**: EVM testnet deployment
-- **USDT Integration**: Stablecoin reward payments
+- **USDC Integration**: Stablecoin reward payments
 
 ### zkTLS
 - **Primus Network**: zkTLS proof generation
@@ -190,8 +190,8 @@ zkTLS enables trustless verification of the "No Burning Detected" status from th
 
 3. **Reward Distribution**
    - If no burning detected for 30 days
-   - Farm owner claims reward (500 USDT)
-   - Smart contract transfers USDT to owner wallet
+   - Farm owner claims reward (500 USDC)
+   - Smart contract transfers USDC to owner wallet
 
 4. **Ineligibility**
    - If burning detected (proof shows burning)
@@ -242,8 +242,8 @@ Tests cover:
 ## Deployment Checklist
 
 - [ ] Deploy CleanFieldOracle contract to Sepolia
-- [ ] Deploy or use existing USDT contract
-- [ ] Fund contract with USDT for rewards
+- [ ] Deploy or use existing USDC contract
+- [ ] Fund contract with USDC for rewards
 - [ ] Set oracle address in contract
 - [ ] Update `NEXT_PUBLIC_CONTRACT_ADDRESS` in `.env.local`
 - [ ] Deploy Next.js app to Vercel/hosting

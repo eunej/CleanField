@@ -42,12 +42,12 @@ Your hackathon project is now fully initialized and ready for development! Here'
   - Farm registration system
   - zkTLS proof submission (oracle-only)
   - Reward claiming logic (30-day period)
-  - USDT integration
+  - USDC integration
   - Access control
   - Emergency functions
 
 **Features:**
-- Monthly reward: 500 USDT
+- Monthly reward: 500 USDC
 - 30-day claim period
 - Proof-based verification
 - Farm activation/deactivation
@@ -151,7 +151,7 @@ forge test
 ### Farm 1 - Green Valley Farm ✅
 - Owner: Somchai Patel
 - Status: Clean, no burning
-- Reward: $500 USDT (active)
+- Reward: $500 USDC (active)
 - Incidents: 0
 
 ### Farm 2 - Sunrise Orchards ⚠️
@@ -163,13 +163,13 @@ forge test
 ### Farm 3 - Golden Harvest Fields ✅
 - Owner: Apinya Wong
 - Status: Clean, paid
-- Reward: $800 USDT (completed)
+- Reward: $800 USDC (completed)
 - Incidents: 0
 
 ### Farm 4 - River Bend Agriculture ⏳
 - Owner: Kittisak Chen
 - Status: Clean, pending payment
-- Reward: $650 USDT (pending)
+- Reward: $650 USDC (pending)
 - Incidents: 0
 
 ### Farm 5 - Mountain View Plantation ⚠️
@@ -245,7 +245,7 @@ forge script script/Deploy.s.sol:DeployCleanFieldOracle \
 2. **zkTLS Innovation**: Uses cutting-edge zkTLS for trustless verification
 3. **Government Integration**: Works with existing GISTDA portal (no server changes needed)
 4. **Complete Implementation**: Full-stack with smart contracts, frontend, and docs
-5. **Practical Solution**: Farmers get direct USDT rewards for clean farming
+5. **Practical Solution**: Farmers get direct USDC rewards for clean farming
 6. **Scalable**: Can expand to other regions and verification methods
 
 ## Technical Highlights

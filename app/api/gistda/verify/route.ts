@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
     const startDate = periodStart ? new Date(periodStart) : new Date(endDate.getTime() - 30 * 24 * 60 * 60 * 1000);
     const daysVerified = Math.ceil((endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000));
 
-    // Calculate reward amount (500 USDT base + 10 USDT per extra day over 30)
+    // Calculate reward amount (500 USDC base + 10 USDC per extra day over 30)
     const baseReward = 500;
     const bonusDays = Math.max(0, daysVerified - 30);
     const rewardAmount = noBurning ? baseReward + (bonusDays * 10) : 0;
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
       reward: {
         eligible: noBurning,
         amount: rewardAmount,
-        currency: 'USDT',
+        currency: 'USDC',
       },
     };
 

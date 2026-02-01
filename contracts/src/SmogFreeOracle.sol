@@ -10,8 +10,8 @@ import {Ownable} from "./utils/Ownable.sol";
  * @notice This contract uses zkTLS proofs to verify "No Burning" status from GISTDA portal
  */
 contract CleanFieldOracle is Ownable {
-    // USDT token interface
-    IERC20 public immutable usdtToken;
+    // USDC token interface
+    IERC20 public immutable usdcToken;
 
     // Struct to store farm information
     struct Farm {
@@ -41,7 +41,7 @@ contract CleanFieldOracle is Ownable {
     mapping(address => string[]) public ownerFarms;
 
     // Reward configuration
-    uint256 public monthlyReward = 500 * 10**6; // 500 USDT (6 decimals)
+    uint256 public monthlyReward = 500 * 10**6; // 500 USDC (6 decimals)
     uint256 public constant CLAIM_PERIOD = 30 days;
 
     // Oracle address that can submit proofs
@@ -66,8 +66,8 @@ contract CleanFieldOracle is Ownable {
     error InsufficientContractBalance();
     error TransferFailed();
 
-    constructor(address _usdtToken, address _oracle) {
-        usdtToken = IERC20(_usdtToken);
+    constructor(address _usdcToken, address _oracle) {
+        usdcToken = IERC20(_usdcToken);
         oracle = _oracle;
     }
 
@@ -144,7 +144,7 @@ contract CleanFieldOracle is Ownable {
         if (!recentProof.noBurningDetected) revert BurningDetected();
 
         // Check contract has enough balance
-        uint256 balance = usdtToken.balanceOf(address(this));
+        uint256 balance = usdcToken.balanceOf(address(this));
         if (balance < monthlyReward) revert InsufficientContractBalance();
 
         // Update farm data
@@ -152,7 +152,7 @@ contract CleanFieldOracle is Ownable {
         farm.totalClaimed += monthlyReward;
 
         // Transfer reward
-        bool success = usdtToken.transfer(farm.owner, monthlyReward);
+        bool success = usdcToken.transfer(farm.owner, monthlyReward);
         if (!success) revert TransferFailed();
 
         emit RewardClaimed(_farmId, farm.owner, monthlyReward);
@@ -244,8 +244,8 @@ contract CleanFieldOracle is Ownable {
      * @dev Emergency withdraw (only owner)
      */
     function emergencyWithdraw() external onlyOwner {
-        uint256 balance = usdtToken.balanceOf(address(this));
-        bool success = usdtToken.transfer(owner(), balance);
+        uint256 balance = usdcToken.balanceOf(address(this));
+        bool success = usdcToken.transfer(owner(), balance);
         if (!success) revert TransferFailed();
     }
 }

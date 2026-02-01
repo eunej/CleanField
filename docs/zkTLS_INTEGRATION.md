@@ -271,7 +271,7 @@ function submitProof(
 - Transparent reward eligibility
 - Automated verification process
 - Privacy-preserving data sharing
-- Direct USDT rewards for clean farming
+- Direct USDC rewards for clean farming
 
 ### For Project:
 - Trustless verification without centralized oracle
