@@ -187,8 +187,32 @@ export async function claimReward(
   } catch (error: unknown) {
     const err = error as Error;
     
-    // Parse common revert reasons
+    // Parse common revert reasons - check both error message and raw error data
     let errorMessage = err.message || 'Claim failed';
+    const errorData = (error as { data?: string })?.data || errorMessage;
+    
+    // Custom error selectors from CleanFieldRewards contract
+    // These are the first 4 bytes of keccak256(errorSignature)
+    const ERROR_SELECTORS: Record<string, string> = {
+      '0x00efad03': 'You have already claimed your reward for this year.',
+      '0xf7700e63': 'Claim period has not elapsed yet. Please wait.',
+      '0x5c864432': 'Burning was detected. You are not eligible for the reward.',
+      '0x30d4a532': 'zkTLS proof verification failed.',
+      '0x786e0a99': 'Contract has insufficient funds. Please contact support.',
+      '0x90b8ec18': 'Transfer failed. Please try again.',
+      '0x439cc0cd': 'Verification failed on-chain.',
+      '0xd92e233d': 'Invalid address provided.',
+    };
+    
+    // Check for error selector in the data field
+    for (const [selector, message] of Object.entries(ERROR_SELECTORS)) {
+      if (errorData.includes(selector)) {
+        errorMessage = message;
+        break;
+      }
+    }
+    
+    // Also check error message strings as fallback
     if (errorMessage.includes('AlreadyClaimedThisYear')) {
       errorMessage = 'You have already claimed your reward for this year.';
     } else if (errorMessage.includes('NoProofAvailable')) {
@@ -201,6 +225,8 @@ export async function claimReward(
       errorMessage = 'This farm is not registered on-chain.';
     } else if (errorMessage.includes('InsufficientContractBalance')) {
       errorMessage = 'Contract has insufficient funds. Please contact support.';
+    } else if (errorMessage.includes('user rejected') || errorMessage.includes('User denied')) {
+      errorMessage = 'Transaction was rejected by user.';
     }
     
     return {
