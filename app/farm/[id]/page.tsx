@@ -671,7 +671,7 @@ export default function FarmOwnerPage() {
               }`}>
                 {zkTLSResult?.success ? '✓' : '1'}
               </div>
-              <span className="text-sm font-semibold text-gray-700">Generate zkTLS Proof</span>
+              <span className="text-sm font-semibold text-gray-700">Generate zkTLS Proof from GISTDA</span>
             </div>
             <button
               onClick={createZkTLSAttestation}
@@ -704,7 +704,7 @@ export default function FarmOwnerPage() {
                   <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                   </svg>
-                  Generate zkTLS Proof
+                  Generate zkTLS Proof from GISTDA
                 </span>
               )}
             </button>
@@ -805,63 +805,76 @@ export default function FarmOwnerPage() {
           <div className="mb-4">
             <div className="flex items-center mb-2">
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mr-2 ${
-                claimResult?.success ? 'bg-green-500 text-white' : 'bg-purple-100 text-purple-700'
+                farm.eligibilityStatus === 'paid' || farm.eligibilityStatus === 'pending' || claimResult?.success ? 'bg-green-500 text-white' : 'bg-purple-100 text-purple-700'
               }`}>
-                {claimResult?.success ? '✓' : '2'}
+                {farm.eligibilityStatus === 'paid' || farm.eligibilityStatus === 'pending' || claimResult?.success ? '✓' : '2'}
               </div>
               <span className="text-sm font-semibold text-gray-700">Claim USDC Reward</span>
             </div>
             
-            <button
-              onClick={handleClaimOnChain}
-              disabled={!canClaimOnChain}
-              className={`w-full py-4 rounded-xl font-bold text-white transition-all ${
-                !canClaimOnChain
-                  ? 'bg-gray-300 cursor-not-allowed'
-                  : claiming
-                  ? 'bg-yellow-500'
-                  : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700'
-              } shadow-lg`}
-            >
-              {claiming ? (
-                <span className="flex items-center justify-center">
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  {claimStep || 'Processing On-Chain...'}
-                </span>
-              ) : claimResult?.success ? (
+            {farm.eligibilityStatus === 'paid' || farm.eligibilityStatus === 'pending' ? (
+              <div className="w-full py-4 rounded-xl font-bold text-white bg-green-500 shadow-lg">
                 <span className="flex items-center justify-center">
                   <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
                   </svg>
-                  Claimed Successfully!
+                  Already Claimed
                 </span>
-              ) : (
-                <span className="flex items-center justify-center">
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Claim ${estimatedRewardUSDC} USDC On-Chain
-                </span>
-              )}
-            </button>
-            
-            {!hasValidProof && !zkTLSResult && (
-              <p className="text-xs text-gray-500 mt-2 text-center">Generate zkTLS proof first to claim reward</p>
-            )}
-            {zkTLSResult && !zkTLSResult.attestation?.data.noBurningDetected && (
-              <p className="text-xs text-red-500 mt-2 text-center">Not eligible - burning detected in proof</p>
-            )}
-            {!wallet.isConnected && hasValidProof && (
-              <p className="text-xs text-blue-600 mt-2 text-center">Connect wallet for on-chain claiming</p>
-            )}
-            {wallet.isConnected && !wallet.isCorrectChain && (
-              <p className="text-xs text-yellow-600 mt-2 text-center">Switch to Base network for on-chain claiming</p>
-            )}
-            {wallet.isConnected && wallet.isCorrectChain && !contractReady && (
-              <p className="text-xs text-yellow-600 mt-2 text-center">On-chain contract not detected. Restart the app or check `NEXT_PUBLIC_REWARDS_CONTRACT`.</p>
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={handleClaimOnChain}
+                  disabled={!canClaimOnChain}
+                  className={`w-full py-4 rounded-xl font-bold text-white transition-all ${
+                    !canClaimOnChain
+                      ? 'bg-gray-300 cursor-not-allowed'
+                      : claiming
+                      ? 'bg-yellow-500'
+                      : 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700'
+                  } shadow-lg`}
+                >
+                  {claiming ? (
+                    <span className="flex items-center justify-center">
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      {claimStep || 'Processing On-Chain...'}
+                    </span>
+                  ) : claimResult?.success ? (
+                    <span className="flex items-center justify-center">
+                      <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                      </svg>
+                      Claimed Successfully!
+                    </span>
+                  ) : (
+                    <span className="flex items-center justify-center">
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Claim ${estimatedRewardUSDC} USDC On-Chain
+                    </span>
+                  )}
+                </button>
+                
+                {!hasValidProof && !zkTLSResult && (
+                  <p className="text-xs text-gray-500 mt-2 text-center">Generate zkTLS proof first to claim reward</p>
+                )}
+                {zkTLSResult && !zkTLSResult.attestation?.data.noBurningDetected && (
+                  <p className="text-xs text-red-500 mt-2 text-center">Not eligible - burning detected in proof</p>
+                )}
+                {!wallet.isConnected && hasValidProof && (
+                  <p className="text-xs text-blue-600 mt-2 text-center">Connect wallet for on-chain claiming</p>
+                )}
+                {wallet.isConnected && !wallet.isCorrectChain && (
+                  <p className="text-xs text-yellow-600 mt-2 text-center">Switch to Base network for on-chain claiming</p>
+                )}
+                {wallet.isConnected && wallet.isCorrectChain && !contractReady && (
+                  <p className="text-xs text-yellow-600 mt-2 text-center">On-chain contract not detected. Restart the app or check `NEXT_PUBLIC_REWARDS_CONTRACT`.</p>
+                )}
+              </>
             )}
           </div>
 
@@ -925,50 +938,6 @@ export default function FarmOwnerPage() {
                   <p className="text-xs text-red-600 mt-2">{claimResult.eligibility.reason}</p>
                 </>
               )}
-            </div>
-          )}
-        </div>
-
-        {/* GISTDA Direct Check Card */}
-        <div className="bg-white rounded-3xl shadow-2xl p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-gray-800">GISTDA Direct Check</h3>
-            <div className="bg-blue-100 rounded-full p-2">
-              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-          </div>
-          
-          <button
-            onClick={verifyWithGISTDA}
-            disabled={verifying}
-            className={`w-full py-3 rounded-xl font-bold text-white transition-all ${
-              verifying
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 shadow-lg hover:shadow-xl'
-            }`}
-          >
-            {verifying ? 'Checking...' : 'Check GISTDA Satellite Data'}
-          </button>
-
-          {verificationResult && (
-            <div className={`mt-3 rounded-xl p-3 ${
-              verificationResult.error 
-                ? 'bg-yellow-50 border border-yellow-200'
-                : verificationResult.verification?.noBurningDetected
-                ? 'bg-green-50 border border-green-200'
-                : 'bg-red-50 border border-red-200'
-            }`}>
-              <p className={`text-sm font-semibold ${
-                verificationResult.error ? 'text-yellow-700' :
-                verificationResult.verification?.noBurningDetected ? 'text-green-700' : 'text-red-700'
-              }`}>
-                {verificationResult.error || 
-                 (verificationResult.verification?.noBurningDetected 
-                   ? '✓ No hotspots detected' 
-                   : `⚠️ ${verificationResult.verification?.hotspotsDetected} hotspot(s) found`)}
-              </p>
             </div>
           )}
         </div>
@@ -1068,15 +1037,6 @@ export default function FarmOwnerPage() {
           </div>
         )}
 
-        {/* Wallet Info */}
-        <div className="mt-6 bg-white bg-opacity-20 backdrop-blur-lg rounded-2xl p-4">
-          <p className="text-xs text-white opacity-75 mb-1">
-            {wallet.isConnected ? 'Connected Wallet' : 'Farm Wallet'}
-          </p>
-          <p className="text-sm font-mono text-white break-all">
-            {wallet.isConnected ? wallet.address : farm.walletAddress}
-          </p>
-        </div>
       </div>
     </div>
   );
