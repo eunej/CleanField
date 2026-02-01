@@ -97,13 +97,11 @@ export const MOCK_BURNING_RECORDS: BurningRecord[] = [
 ];
 
 // Mock insurance payments (THB ฿5,000/ha/year)
+// Note: Payments should only exist for farms that have claimed
+// farm1 is 'eligible' (hasn't claimed yet, so no payment record)
+// farm3 is 'paid' (completed payment)
+// farm4 is 'pending' (payment in progress)
 export const MOCK_PAYMENTS: InsurancePayment[] = [
-  {
-    farmId: 'farm1',
-    amount: 127500, // 25.5 ha × ฿5,000/ha/year
-    timestamp: '2026-01-28T10:00:00Z',
-    status: 'pending',
-  },
   {
     farmId: 'farm3',
     amount: 210000, // 42.0 ha × ฿5,000/ha/year
