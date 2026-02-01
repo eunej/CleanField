@@ -278,5 +278,3 @@ Refer to:
 - `docs/zkTLS_INTEGRATION.md` for zkTLS details
 - Contract source code in `contracts/src/`
 - Frontend code in `app/`
-
-Good luck with your hackathon! 🌱🚀

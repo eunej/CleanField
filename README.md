@@ -292,4 +292,4 @@ For questions or demo requests, please reach out during the hackathon.
 
 ---
 
-**Built for Hackathon 2026** 🌱
+**Built for ETHChaingmai 2026** 🌱

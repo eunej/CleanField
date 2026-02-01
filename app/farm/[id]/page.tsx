@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { Farm, InsurancePayment } from '@/lib/types/farm';
 import {
   isWalletInstalled,
+  getAvailableWallets,
   connectWallet,
   disconnectWallet,
   getWalletState,
@@ -16,6 +17,8 @@ import {
   getExplorerTxUrl,
   DEFAULT_CHAIN,
   type WalletState,
+  type WalletType,
+  type WalletInfo,
 } from '@/lib/web3';
 import {
   claimReward as claimRewardOnChain,
@@ -139,20 +142,35 @@ export default function FarmOwnerPage() {
     isCorrectChain: false,
     provider: null,
     signer: null,
+    walletType: null,
+    walletName: null,
   });
   const [walletError, setWalletError] = useState<string | null>(null);
   const [contractReady, setContractReady] = useState(false);
   const [claimStep, setClaimStep] = useState<string>('');
+  const [walletInstalled, setWalletInstalled] = useState(false);
+  const [availableWallets, setAvailableWallets] = useState<WalletInfo[]>([]);
+  const [showWalletSelector, setShowWalletSelector] = useState(false);
+  const [connecting, setConnecting] = useState(false);
 
   // Delay rendering until mounted to avoid hydration mismatch from browser extensions
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Check wallet state on mount
+  // Check wallet installation and state on mount
   useEffect(() => {
+    if (!mounted) return;
+    
+    const installed = isWalletInstalled();
+    setWalletInstalled(installed);
+    
+    // Get available wallets
+    const wallets = getAvailableWallets();
+    setAvailableWallets(wallets);
+    
     const checkWallet = async () => {
-      if (isWalletInstalled()) {
+      if (installed) {
         const state = await getWalletState();
         setWallet(state);
 
@@ -165,15 +183,16 @@ export default function FarmOwnerPage() {
         if (state.signer) {
           const deployed = await isContractDeployed();
           setContractReady(deployed);
-          
         }
       }
     };
     checkWallet();
-  }, [farmId]);
+  }, [mounted, farmId]);
 
   // Subscribe to wallet events
   useEffect(() => {
+    if (!mounted) return;
+    
     const unsubscribe = subscribeToWalletEvents(async (state) => {
       setWallet(state);
       if (state.chainId) {
@@ -183,15 +202,15 @@ export default function FarmOwnerPage() {
       if (state.signer) {
         const deployed = await isContractDeployed();
         setContractReady(deployed);
-        
       }
     });
     return unsubscribe;
-  }, [farmId]);
+  }, [mounted, farmId]);
 
   useEffect(() => {
+    if (!mounted) return;
     fetchFarmData();
-  }, [farmId]);
+  }, [mounted, farmId]);
 
   const fetchFarmData = async () => {
     try {
@@ -206,18 +225,70 @@ export default function FarmOwnerPage() {
     }
   };
 
-  const handleConnectWallet = async () => {
+  const handleConnectWallet = async (walletType?: WalletType) => {
+    console.log('[Wallet] Connect clicked, walletType:', walletType);
     setWalletError(null);
+    setShowWalletSelector(false);
+    
+    // Re-check wallet installation (in case it was installed after page load)
+    const installed = isWalletInstalled();
+    setWalletInstalled(installed);
+    console.log('[Wallet] Installed:', installed);
+    
+    // Refresh available wallets
+    const wallets = getAvailableWallets();
+    setAvailableWallets(wallets);
+    console.log('[Wallet] Available wallets:', wallets.map(w => w.name));
+    
+    if (!installed || wallets.length === 0) {
+      setWalletError('No wallet detected. Please install MetaMask or Rabby.');
+      return;
+    }
+    
+    // If multiple wallets and no specific wallet selected, show selector
+    if (wallets.length > 1 && !walletType) {
+      console.log('[Wallet] Multiple wallets found, showing selector');
+      setShowWalletSelector(true);
+      return;
+    }
+    
+    setConnecting(true);
     try {
-      const state = await connectWallet();
+      console.log('[Wallet] Connecting to:', walletType || wallets[0]?.name);
+      const state = await connectWallet(walletType);
+      console.log('[Wallet] Connected:', state.address);
       setWallet(state);
       
       if (state.signer) {
         const deployed = await isContractDeployed();
         setContractReady(deployed);
       }
-    } catch (error) {
+    } catch (error: unknown) {
+      console.error('[Wallet] Connection error:', error);
+      
+      // Ignore errors from other wallet extensions (Solana, etc.)
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('solana') || errorMessage.includes('Something went wrong')) {
+        console.log('[Wallet] Ignoring external wallet extension error, retrying...');
+        // Retry connection after a short delay
+        try {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          const state = await connectWallet(walletType);
+          console.log('[Wallet] Connected on retry:', state.address);
+          setWallet(state);
+          if (state.signer) {
+            const deployed = await isContractDeployed();
+            setContractReady(deployed);
+          }
+          return;
+        } catch (retryError) {
+          console.error('[Wallet] Retry failed:', retryError);
+        }
+      }
+      
       setWalletError(error instanceof Error ? error.message : 'Failed to connect wallet');
+    } finally {
+      setConnecting(false);
     }
   };
 
@@ -434,17 +505,29 @@ export default function FarmOwnerPage() {
             <div className="flex items-center space-x-2">
               <div className={`w-3 h-3 rounded-full ${wallet.isConnected ? (wallet.isCorrectChain ? 'bg-green-500' : 'bg-yellow-500') : 'bg-gray-300'}`}></div>
               <span className="text-sm font-medium text-gray-700">
-                {wallet.isConnected ? getChainName(wallet.chainId) : 'Not Connected'}
+                {wallet.isConnected 
+                  ? `${wallet.walletName || 'Wallet'} • ${getChainName(wallet.chainId)}` 
+                  : 'Not Connected'}
               </span>
             </div>
             
             {!wallet.isConnected ? (
-              <button
-                onClick={handleConnectWallet}
-                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-bold rounded-xl hover:from-purple-700 hover:to-indigo-700 transition-all"
-              >
-                Connect Wallet
-              </button>
+              <div className="flex flex-col items-end">
+                <button
+                  onClick={() => handleConnectWallet()}
+                  disabled={connecting}
+                  className={`px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-bold rounded-xl transition-all ${
+                    connecting ? 'opacity-70 cursor-wait' : 'hover:from-purple-700 hover:to-indigo-700'
+                  }`}
+                >
+                  {connecting ? 'Connecting...' : 'Connect Wallet'}
+                </button>
+                {connecting && (
+                  <p className="text-xs text-purple-600 mt-1 animate-pulse">
+                    Check your wallet extension →
+                  </p>
+                )}
+              </div>
             ) : (
               <div className="flex items-center space-x-2">
                 {!wallet.isCorrectChain && (
@@ -467,15 +550,46 @@ export default function FarmOwnerPage() {
             )}
           </div>
           
+          {/* Wallet Selector Modal */}
+          {showWalletSelector && (
+            <div className="mt-4 p-3 bg-gray-50 rounded-xl border border-gray-200">
+              <p className="text-sm font-medium text-gray-700 mb-3">Select a wallet:</p>
+              <div className="space-y-2">
+                {availableWallets.map((w) => (
+                  <button
+                    key={w.type}
+                    onClick={() => handleConnectWallet(w.type)}
+                    className="w-full flex items-center space-x-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-purple-400 hover:bg-purple-50 transition-all"
+                  >
+                    <span className="text-2xl">{w.icon}</span>
+                    <span className="font-medium text-gray-800">{w.name}</span>
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setShowWalletSelector(false)}
+                className="mt-3 w-full text-sm text-gray-500 hover:text-gray-700"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+          
           {walletError && (
             <p className="mt-2 text-xs text-red-600">{walletError}</p>
           )}
           
-          {!isWalletInstalled() && (
+          {!walletInstalled && (
             <p className="mt-2 text-xs text-gray-500">
+              Install{' '}
               <a href="https://metamask.io" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                Install MetaMask
-              </a> to claim rewards on-chain
+                MetaMask
+              </a>{' '}
+              or{' '}
+              <a href="https://rabby.io" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                Rabby
+              </a>{' '}
+              to claim rewards on-chain
             </p>
           )}
         </div>

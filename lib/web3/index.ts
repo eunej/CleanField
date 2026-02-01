@@ -21,6 +21,8 @@ export {
 export {
   isWalletInstalled,
   isMetaMask,
+  isRabby,
+  getAvailableWallets,
   connectWallet,
   disconnectWallet,
   getWalletState,
@@ -28,6 +30,8 @@ export {
   subscribeToWalletEvents,
   getChainName,
   type WalletState,
+  type WalletType,
+  type WalletInfo,
 } from './provider';
 
 // Contracts
