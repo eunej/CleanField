@@ -76,6 +76,7 @@ interface ZkTLSBatchResponse {
 }
 
 export default function AdminPage() {
+  const [mounted, setMounted] = useState(false);
   const [farms, setFarms] = useState<Farm[]>([]);
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState(false);
@@ -83,9 +84,16 @@ export default function AdminPage() {
   const [zkTLSAttesting, setZkTLSAttesting] = useState(false);
   const [zkTLSResults, setZkTLSResults] = useState<ZkTLSBatchResponse | null>(null);
 
+  // Delay rendering until mounted to avoid hydration mismatch from browser extensions
   useEffect(() => {
-    fetchFarms();
+    setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (mounted) {
+      fetchFarms();
+    }
+  }, [mounted]);
 
   const fetchFarms = async () => {
     try {
@@ -143,10 +151,15 @@ export default function AdminPage() {
     }
   };
 
+  // Return null before mounting to avoid hydration mismatch from browser extensions
+  if (!mounted) {
+    return null;
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-8" suppressHydrationWarning>
-      <div className="max-w-7xl mx-auto" suppressHydrationWarning>
-        <div className="flex justify-between items-center mb-8" suppressHydrationWarning>
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-4xl font-bold text-gray-800 mb-2">
               CleanField

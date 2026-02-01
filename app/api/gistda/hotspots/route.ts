@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
     usage: {
       byFarmId: '/api/gistda/hotspots?farmId=farm1',
       byScenario: '/api/gistda/hotspots?scenario=cleanFarm',
-      withCustomLocation: '/api/gistda/hotspots?farmId=farm1&lat=13.7563&lng=100.5018',
+      withCustomLocation: '/api/gistda/hotspots?farmId=farm1&lat=19.9085&lng=99.8304',
     },
     availableFarms: Object.keys(FARM_MOCK_RESPONSES),
     availableScenarios: Object.keys(MOCK_SCENARIOS),
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           error: 'farmId is required',
-          example: { farmId: 'farm1', latitude: 13.7563, longitude: 100.5018 },
+          example: { farmId: 'farm1', latitude: 19.9085, longitude: 99.8304 },
         },
         { status: 400 }
       );
@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
 
     // Generate a default clean response for unknown farms
     return NextResponse.json(
-      generateMockResponse(farmId, 13.7563, 100.5018, forceNoBurning ?? true)
+      generateMockResponse(farmId, 19.9085, 99.8304, forceNoBurning ?? true)
     );
   } catch (error) {
     return NextResponse.json(

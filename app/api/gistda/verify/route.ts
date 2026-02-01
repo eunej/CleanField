@@ -108,8 +108,8 @@ export async function POST(request: NextRequest) {
     // Get farm data
     const farm = MOCK_FARMS.find(f => f.id === farmId);
     const farmWallet = walletAddress || farm?.walletAddress || '0x0000000000000000000000000000000000000000';
-    const farmLat = farm?.location.lat || 13.7563;
-    const farmLng = farm?.location.lng || 100.5018;
+    const farmLat = farm?.location.lat || 19.9085;
+    const farmLng = farm?.location.lng || 99.8304;
 
     // Get mock GISTDA response for this farm
     const gistdaResponse = getMockGISTDAResponse(farmId);

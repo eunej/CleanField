@@ -119,6 +119,7 @@ export default function FarmOwnerPage() {
   const params = useParams();
   const farmId = params.id as string;
 
+  const [mounted, setMounted] = useState(false);
   const [farm, setFarm] = useState<Farm | null>(null);
   const [payments, setPayments] = useState<InsurancePayment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -142,6 +143,11 @@ export default function FarmOwnerPage() {
   const [walletError, setWalletError] = useState<string | null>(null);
   const [contractReady, setContractReady] = useState(false);
   const [claimStep, setClaimStep] = useState<string>('');
+
+  // Delay rendering until mounted to avoid hydration mismatch from browser extensions
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Check wallet state on mount
   useEffect(() => {
@@ -369,10 +375,15 @@ export default function FarmOwnerPage() {
     }
   }, [wallet.signer, wallet.chainId, wallet.address, farmId, farm, zkTLSResult]);
 
+  // Return null before mounting to avoid hydration mismatch from browser extensions
+  if (!mounted) {
+    return null;
+  }
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center p-4" suppressHydrationWarning>
-        <div className="text-center" suppressHydrationWarning>
+      <div className="min-h-screen bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center p-4">
+        <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-white mx-auto"></div>
           <p className="mt-4 text-white text-lg font-medium">Loading...</p>
         </div>
@@ -382,8 +393,8 @@ export default function FarmOwnerPage() {
 
   if (!farm) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-400 to-orange-500 flex items-center justify-center p-4" suppressHydrationWarning>
-        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center" suppressHydrationWarning>
+      <div className="min-h-screen bg-gradient-to-br from-red-400 to-orange-500 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
           <svg className="w-20 h-20 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
@@ -414,8 +425,8 @@ export default function FarmOwnerPage() {
   const estimatedRewardTHB = farm ? Math.round(farm.area * 5000) : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-400 via-blue-500 to-purple-600 p-4 pb-8" suppressHydrationWarning>
-      <div className="max-w-md mx-auto pt-6" suppressHydrationWarning>
+    <div className="min-h-screen bg-gradient-to-br from-green-400 via-blue-500 to-purple-600 p-4 pb-8">
+      <div className="max-w-md mx-auto pt-6">
         
         {/* Wallet Connection Card */}
         <div className="bg-white rounded-3xl shadow-2xl p-4 mb-6">

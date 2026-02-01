@@ -7,7 +7,7 @@ export const MOCK_FARMS: Farm[] = [
     name: 'Green Valley Farm',
     owner: 'สมชาย ใจดี',
     walletAddress: '0x1234567890123456789012345678901234567890',
-    location: { lat: 13.7563, lng: 100.5018 },
+    location: { lat: 19.9085, lng: 99.8304 }, // Chiang Rai (North)
     area: 25.5,
     registrationDate: '2024-01-15',
     lastCheckDate: '2026-01-28',
@@ -21,7 +21,7 @@ export const MOCK_FARMS: Farm[] = [
     name: 'Sunrise Orchards',
     owner: 'นิรันดร์ สุขสวัสดิ์',
     walletAddress: '0x2345678901234567890123456789012345678901',
-    location: { lat: 14.3532, lng: 100.5698 },
+    location: { lat: 8.4304, lng: 99.9631 }, // Nakhon Si Thammarat (South)
     area: 18.2,
     registrationDate: '2024-02-20',
     lastCheckDate: '2026-01-28',
@@ -35,7 +35,7 @@ export const MOCK_FARMS: Farm[] = [
     name: 'Golden Harvest Fields',
     owner: 'อภิญญา วงศ์สกุล',
     walletAddress: '0x3456789012345678901234567890123456789012',
-    location: { lat: 15.8700, lng: 100.9925 },
+    location: { lat: 15.2294, lng: 104.8563 }, // Ubon Ratchathani (East)
     area: 42.0,
     registrationDate: '2024-03-10',
     lastCheckDate: '2026-01-28',
@@ -49,7 +49,7 @@ export const MOCK_FARMS: Farm[] = [
     name: 'River Bend Agriculture',
     owner: 'กิตติศักดิ์ เจริญผล',
     walletAddress: '0x4567890123456789012345678901234567890123',
-    location: { lat: 16.4419, lng: 102.8359 },
+    location: { lat: 14.0227, lng: 99.5328 }, // Kanchanaburi (West)
     area: 33.7,
     registrationDate: '2024-04-05',
     lastCheckDate: '2026-01-28',
@@ -63,7 +63,7 @@ export const MOCK_FARMS: Farm[] = [
     name: 'Mountain View Plantation',
     owner: 'ปราณี ศรีสุข',
     walletAddress: '0x5678901234567890123456789012345678901234',
-    location: { lat: 18.7883, lng: 98.9853 },
+    location: { lat: 17.4138, lng: 102.7875 }, // Udon Thani (Northeast)
     area: 51.3,
     registrationDate: '2024-05-12',
     lastCheckDate: '2026-01-28',
